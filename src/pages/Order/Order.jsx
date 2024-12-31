@@ -1,7 +1,7 @@
 import React, { useContext } from 'react'
 import myContext from '../../context/data/myContext'
 import Layout from '../../components/layout/layout'
-import Loader from '../../components/loader/Loader'
+import Loader from '../../components/loader/loader'
 
 function Order() {
   const userid = JSON.parse(localStorage.getItem('user')).user.uid
