@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react'
 import myContext from '../../context/data/myContext';
-import Layout from '../../components/layout/Layout';
+import Layout from '../../components/layout/layout';
 import Modal from '../../components/modal/Modal';
 import { toast } from 'react-toastify'
 import { useDispatch, useSelector } from 'react-redux';
