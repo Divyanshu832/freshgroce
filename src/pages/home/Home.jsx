@@ -1,7 +1,7 @@
 import React, { useContext } from 'react'
 import Layout from '../../components/layout/layout'
 import HeroSection from '../../components/HeroSection/herosection'
-import Filter from '../../components/FilterComponents/filter'
+import Filter from '../../components/FilterComponents/Filter'
 import ProductCard from '../../components/ProductCard/ProductCard'
 import Track from '../../components/track/Track'
 import Testimonial from '../../components/testimonial/Testimonial'
