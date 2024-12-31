@@ -8,7 +8,7 @@ import Home from "./pages/home/Home";
 import MyState from "./context/data/myData";
 import Order from "./pages/Order/Order";
 import NoPage from "./pages/nopage/NoPage";
-import Cart from "./pages/cart/cart";
+import Cart from "./pages/cart/Cart";
 import Dashboard from "./pages/admin/dashboard/Dashboard";
 import ProductInfo from "./pages/productinfo/ProductInfo";
 import Login from "./pages/registration/Login";
