@@ -21,7 +21,6 @@ import UpdateProduct from "./pages/admin/pages/UpdateProduct";
 function App() {
   return (
     <MyState>
-      <BrowserRouter>
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -45,7 +44,6 @@ function App() {
         </Routes>
         <ToastContainer/>
       </Router>
-      </BrowserRouter>
     </MyState>
 
   )
