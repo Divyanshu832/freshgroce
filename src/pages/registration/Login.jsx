@@ -1,44 +1,64 @@
 import { Link, useNavigate } from "react-router-dom";
 import myContext from "../../context/data/myContext";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { signInWithGoogle, getCurrentUser } from "../../appwrite/authUtils";
+import {
+  signInWithGoogle,
+  getCurrentUser,
+  isAuthenticated,
+  synchronizeUserState,
+} from "../../appwrite/authUtils";
 import Loader from "../../components/loader/loader";
 
 function Login() {
   const navigate = useNavigate();
   const context = useContext(myContext);
   const { loading, setLoading } = context;
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
 
   // Check if user is already logged in
   useEffect(() => {
     const checkUserStatus = async () => {
       setLoading(true);
+      setIsAuthenticating(true);
       try {
-        const userResponse = await getCurrentUser();
-        if (userResponse.success) {
-          // User is already logged in and exists in the database
-          const currentUser = userResponse.data;
+        // First clear any potentially stale session data
+        if (window.location.search.includes("success=true")) {
+          // This is a redirect back from OAuth
+          console.log("Detected OAuth redirect - fetching user data");
+        }
 
-          // Store user data in localStorage with necessary details
-          localStorage.setItem(
-            "user",
-            JSON.stringify({
-              user: {
-                uid: currentUser.$id,
-                email: currentUser.email,
-                name: currentUser.name,
-              },
-            })
-          );
+        const authStatus = await isAuthenticated();
+        if (authStatus.success && authStatus.isAuthenticated) {
+          // User is authenticated in Appwrite
+          // Force update localStorage with current user data
+          try {
+            const userResponse = await getCurrentUser();
+            if (userResponse.success) {
+              // Explicitly store user data again for cross-browser compatibility
+              localStorage.setItem(
+                "user",
+                JSON.stringify({
+                  user: {
+                    uid: userResponse.data.$id,
+                    email: userResponse.data.email,
+                    name: userResponse.data.name,
+                  },
+                })
+              );
 
-          toast.success("Login successful");
-          navigate("/");
+              toast.success("Login successful");
+              navigate("/");
+            }
+          } catch (userError) {
+            console.error("Error getting user details:", userError);
+          }
         }
       } catch (error) {
         console.error("Error checking user status:", error);
       } finally {
         setLoading(false);
+        setIsAuthenticating(false);
       }
     };
 
@@ -49,12 +69,13 @@ function Login() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
+      // Clear any existing data before starting OAuth flow
+      localStorage.clear();
+
       await signInWithGoogle();
-      // The actual authentication will happen through the Appwrite OAuth process
-      // After successful authentication, the user will be redirected back to the app
-      // The useEffect above will handle user creation in the database
+      // The OAuth flow will handle the redirect and authentication
     } catch (error) {
-      console.error(error);
+      console.error("Google sign-in error:", error);
       toast.error("Sign in failed", {
         position: "top-right",
         autoClose: 5000,
@@ -68,6 +89,11 @@ function Login() {
       setLoading(false);
     }
   };
+
+  // If still checking authentication status, show loader
+  if (isAuthenticating) {
+    return <Loader />;
+  }
 
   return (
     <div className="flex justify-center items-center h-screen">

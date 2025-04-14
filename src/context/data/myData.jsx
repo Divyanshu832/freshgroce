@@ -173,7 +173,42 @@ function MyState(props) {
     try {
       const response = await getAllOrders();
       if (response.success) {
-        setOrder(response.data);
+        // Parse the stringified items and address and ensure consistent property names
+        const parsedOrders = response.data.map((order) => {
+          let updatedOrder = { ...order };
+
+          // Parse items if it exists and is a string
+          if (order.items && typeof order.items === "string") {
+            try {
+              const parsedItems = JSON.parse(order.items);
+              updatedOrder = {
+                ...updatedOrder,
+                cartItems: parsedItems, // Add cartItems for compatibility with Order.jsx
+                items: parsedItems, // Keep the original key as well
+              };
+            } catch (e) {
+              console.error("Error parsing order items:", e);
+            }
+          }
+
+          // Parse address if it exists and is a string
+          if (order.address && typeof order.address === "string") {
+            try {
+              const parsedAddress = JSON.parse(order.address);
+              updatedOrder = {
+                ...updatedOrder,
+                addressInfo: parsedAddress, // Add addressInfo for compatibility
+                address: parsedAddress, // Keep the original key as well
+              };
+            } catch (e) {
+              console.error("Error parsing order address:", e);
+            }
+          }
+
+          return updatedOrder;
+        });
+
+        setOrder(parsedOrders);
       } else {
         toast.error(response.error || "Failed to fetch orders");
       }
@@ -182,6 +217,53 @@ function MyState(props) {
       console.log(error);
       toast.error("An error occurred");
       setLoading(false);
+    }
+  };
+
+  // Function to refresh order data without setting loading state
+  const refreshOrderData = async () => {
+    try {
+      const response = await getAllOrders();
+      if (response.success) {
+        // Parse the stringified items and address and ensure consistent property names
+        const parsedOrders = response.data.map((order) => {
+          let updatedOrder = { ...order };
+
+          // Parse items if it exists and is a string
+          if (order.items && typeof order.items === "string") {
+            try {
+              const parsedItems = JSON.parse(order.items);
+              updatedOrder = {
+                ...updatedOrder,
+                cartItems: parsedItems, // Add cartItems for compatibility with Order.jsx
+                items: parsedItems, // Keep the original key as well
+              };
+            } catch (e) {
+              console.error("Error parsing order items:", e);
+            }
+          }
+
+          // Parse address if it exists and is a string
+          if (order.address && typeof order.address === "string") {
+            try {
+              const parsedAddress = JSON.parse(order.address);
+              updatedOrder = {
+                ...updatedOrder,
+                addressInfo: parsedAddress, // Add addressInfo for compatibility
+                address: parsedAddress, // Keep the original key as well
+              };
+            } catch (e) {
+              console.error("Error parsing order address:", e);
+            }
+          }
+
+          return updatedOrder;
+        });
+
+        setOrder(parsedOrders);
+      }
+    } catch (error) {
+      console.log(error);
     }
   };
 
@@ -236,6 +318,7 @@ function MyState(props) {
         setFilterType,
         filterPrice,
         setFilterPrice,
+        refreshOrderData,
       }}
     >
       {props.children}

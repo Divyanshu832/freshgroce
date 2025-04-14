@@ -48,6 +48,19 @@ export const getCurrentUser = async () => {
 
       if (!userInDb.success) {
         console.error("Failed to create user in database:", userInDb.error);
+      } else {
+        // Store or update user data in localStorage
+        // This ensures synchronization across browser sessions
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            user: {
+              uid: currentUser.$id,
+              email: currentUser.email,
+              name: currentUser.name,
+            },
+          })
+        );
       }
 
       return {
@@ -58,11 +71,116 @@ export const getCurrentUser = async () => {
     }
 
     return {
-      success: true,
-      data: currentUser,
+      success: false,
+      message: "No authenticated user found",
     };
   } catch (error) {
     console.error("Error getting current user:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+// Verify if user is authenticated
+export const isAuthenticated = async () => {
+  try {
+    // First check if there's a valid Appwrite session
+    const currentUser = await account.get();
+
+    if (currentUser) {
+      // If we have a valid session but localStorage doesn't match or is missing,
+      // update localStorage to maintain consistency across browsers
+      const localUser = localStorage.getItem("user");
+      if (!localUser) {
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            user: {
+              uid: currentUser.$id,
+              email: currentUser.email,
+              name: currentUser.name,
+            },
+          })
+        );
+      }
+
+      return {
+        success: true,
+        isAuthenticated: true,
+        user: currentUser,
+      };
+    }
+
+    return {
+      success: false,
+      isAuthenticated: false,
+    };
+  } catch (error) {
+    // Handle permission-related errors (missing scope, unauthorized)
+    console.error("Authentication check error:", error);
+
+    // Check if it's a permission error that contains the specific missing scope message
+    if (
+      error.message &&
+      (error.message.includes("missing scope") ||
+        error.message.includes("Unauthorized") ||
+        error.code === 401)
+    ) {
+      // Clear stale data from localStorage
+      localStorage.removeItem("user");
+
+      return {
+        success: false,
+        isAuthenticated: false,
+        error: "Permission denied: " + error.message,
+        isPermanentError: true, // Flag to indicate this is a configuration issue
+      };
+    }
+
+    // For other errors, clean up and return appropriate response
+    localStorage.removeItem("user");
+    return {
+      success: false,
+      isAuthenticated: false,
+      error: error.message,
+    };
+  }
+};
+
+// Synchronize user state with current session
+export const synchronizeUserState = async () => {
+  try {
+    const currentUser = await account.get();
+
+    if (currentUser) {
+      // Update localStorage with current user data
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          user: {
+            uid: currentUser.$id,
+            email: currentUser.email,
+            name: currentUser.name,
+          },
+        })
+      );
+      return {
+        success: true,
+        synchronized: true,
+      };
+    } else {
+      // Remove user data if no session exists
+      localStorage.removeItem("user");
+      return {
+        success: true,
+        synchronized: false,
+      };
+    }
+  } catch (error) {
+    // Session doesn't exist or is invalid
+    localStorage.removeItem("user");
     return {
       success: false,
       error: error.message,
@@ -149,14 +267,26 @@ export const createUser = async (userData) => {
 // Logout user
 export const logoutUser = async () => {
   try {
-    // Delete the current session
-    await account.deleteSession("current");
+    // First ensure localStorage is cleared immediately
+    localStorage.clear(); // Clear all localStorage not just "user"
+
+    try {
+      // Then try to delete the Appwrite session
+      // Changed from 'current' to using deleteSessions() which clears all sessions
+      await account.deleteSessions();
+    } catch (sessionError) {
+      console.error("Error deleting session:", sessionError);
+      // Continue with the logout flow even if session deletion fails
+    }
 
     return {
       success: true,
     };
   } catch (error) {
     console.error("Error logging out:", error);
+    // Make absolutely sure localStorage is cleared even if there were errors
+    localStorage.clear();
+
     return {
       success: false,
       error: error.message,

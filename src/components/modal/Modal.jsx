@@ -1,5 +1,7 @@
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment, useState } from "react";
+import { PaymentMethod } from "../../appwrite/databaseUtils";
+import { FaSpinner } from "react-icons/fa";
 
 export default function Modal({
   name,
@@ -10,19 +12,24 @@ export default function Modal({
   setAddress,
   setPincode,
   setPhoneNumber,
+  paymentMethod,
+  setPaymentMethod,
   buyNow,
+  isProcessing,
 }) {
   let [isOpen, setIsOpen] = useState(false);
 
   function closeModal() {
-    setIsOpen(false);
+    // Only allow closing if not currently processing an order
+    if (!isProcessing) {
+      setIsOpen(false);
+    }
   }
 
   function openModal() {
     setIsOpen(true);
   }
 
-  // console.log(name,address,pincode,phoneNumber)
   return (
     <>
       <div className="  text-center rounded-lg text-white font-bold">
@@ -31,7 +38,7 @@ export default function Modal({
           onClick={openModal}
           className="w-full bg-green-600 py-2 text-center rounded-lg text-white font-bold hover:bg-green-700"
         >
-          Buy Now
+          Place Order
         </button>
       </div>
 
@@ -63,10 +70,6 @@ export default function Modal({
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl p-2  text-left align-middle shadow-xl transition-all bg-gray-50">
                   <section className="">
                     <div className="flex flex-col items-center justify-center py-8 mx-auto  lg:py-0">
-                      {/* <a href="#" className="flex items-center mb-6 text-2xl font-semibold text-gray-900 dark:text-white">
-                                                <img className="w-8 h-8 mr-2" src="https://flowbite.s3.amazonaws.com/blocks/marketing-ui/logo.svg" alt="logo" />
-                                                Flowbite
-                                            </a> */}
                       <div className="w-full  rounded-lg md:mt-0 sm:max-w-md xl:p-0 ">
                         <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
                           <form className="space-y-4 md:space-y-6" action="#">
@@ -85,6 +88,7 @@ export default function Modal({
                                 id="name"
                                 className=" border outline-0 border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 bg-gray-100"
                                 required
+                                disabled={isProcessing}
                               />
                             </div>
                             <div>
@@ -102,6 +106,7 @@ export default function Modal({
                                 id="address"
                                 className=" border outline-0 border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 bg-gray-100"
                                 required
+                                disabled={isProcessing}
                               />
                             </div>
                             <div>
@@ -119,6 +124,7 @@ export default function Modal({
                                 id="pincode"
                                 className=" border outline-0 border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 bg-gray-100"
                                 required
+                                disabled={isProcessing}
                               />
                             </div>
                             <div>
@@ -136,18 +142,53 @@ export default function Modal({
                                 id="mobileNumber"
                                 className=" border outline-0 border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 bg-gray-100"
                                 required
+                                disabled={isProcessing}
                               />
+                            </div>
+                            <div>
+                              <label
+                                htmlFor="paymentMethod"
+                                className="block mb-2 text-sm font-medium text-gray-900"
+                              >
+                                Payment Method
+                              </label>
+                              <select
+                                value={paymentMethod}
+                                onChange={(e) =>
+                                  setPaymentMethod(e.target.value)
+                                }
+                                name="paymentMethod"
+                                id="paymentMethod"
+                                className="border outline-0 border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 bg-gray-100"
+                                required
+                                disabled={isProcessing}
+                              >
+                                <option value="">Select payment method</option>
+                                <option value={PaymentMethod.COD}>
+                                  Cash On Delivery (COD)
+                                </option>
+                                <option value={PaymentMethod.UPI}>UPI</option>
+                              </select>
                             </div>
                           </form>
                           <button
                             onClick={() => {
-                              buyNow();
-                              closeModal();
+                              if (!isProcessing) {
+                                buyNow();
+                              }
                             }}
                             type="button"
-                            className="focus:outline-none w-full text-white bg-green-600 hover:bg-green-700 outline-0 font-medium rounded-lg text-sm px-5 py-2.5 "
+                            disabled={isProcessing}
+                            className="focus:outline-none w-full text-white bg-green-600 hover:bg-green-700 outline-0 font-medium rounded-lg text-sm px-5 py-2.5 flex items-center justify-center"
                           >
-                            Order Now
+                            {isProcessing ? (
+                              <>
+                                <FaSpinner className="animate-spin mr-2" />
+                                Processing Order...
+                              </>
+                            ) : (
+                              "Confirm Order"
+                            )}
                           </button>
                         </div>
                       </div>

@@ -2,15 +2,17 @@ import React, { useContext, useEffect, useState } from "react";
 import myContext from "../../context/data/myContext";
 import Layout from "../../components/layout/layout";
 import Modal from "../../components/modal/Modal";
+import OrderSuccess from "../../components/OrderSuccess/OrderSuccess";
 import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 import {
   addToCart,
   decreaseCart,
   deleteFromCart,
-  updateCartItemQuantity,
+  clearCart,
 } from "../../redux/cartSlice";
-import { addOrderToDb } from "../../appwrite/databaseUtils";
+import { addOrderToDb, OrderStatus } from "../../appwrite/databaseUtils";
+import { generateAndStoreInvoice } from "../../appwrite/invoiceUtils";
 import { FaPlus, FaMinus, FaTrash } from "react-icons/fa";
 
 function Cart() {
@@ -21,6 +23,9 @@ function Cart() {
   const cartItems = useSelector((state) => state.cart);
 
   const [totalAmount, setTotalAmount] = useState(0);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [modalRef, setModalRef] = useState(null);
 
   useEffect(() => {
     let temp = 0;
@@ -38,6 +43,7 @@ function Cart() {
   const [address, setAddress] = useState("");
   const [pincode, setPincode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   // Add item quantity
   const increaseQuantity = (item) => {
@@ -55,9 +61,15 @@ function Cart() {
     toast.error("Item removed from cart");
   };
 
-  const buyNow = async () => {
+  const placeOrder = async () => {
     // validation
-    if (name === "" || address == "" || pincode == "" || phoneNumber == "") {
+    if (
+      name === "" ||
+      address == "" ||
+      pincode == "" ||
+      phoneNumber == "" ||
+      paymentMethod == ""
+    ) {
       return toast.error("All fields are required", {
         position: "top-center",
         autoClose: 1000,
@@ -69,6 +81,9 @@ function Cart() {
         theme: "colored",
       });
     }
+
+    // Set processing state to true - this will show the loading indicator
+    setIsProcessing(true);
 
     const addressInfo = {
       name,
@@ -82,57 +97,66 @@ function Cart() {
       }),
     };
 
-    var options = {
-      key: "rzp_test_z6SbcIJHi2BOlh",
-      key_secret: "ZhnsJ2qqO1UWOjZgonygOstN",
-      amount: parseInt(grandTotal * 100),
-      currency: "INR",
-      order_receipt: "order_rcptid_" + name,
-      name: "Kharido",
-      description: "for testing purpose",
-      handler: async function (response) {
-        toast.success("Payment Successful");
+    // Get user info from localStorage
+    const userInfo = JSON.parse(localStorage.getItem("user"));
 
-        const paymentId = response.razorpay_payment_id;
+    // store order in Appwrite
+    const orderInfo = {
+      items: JSON.stringify(cartItems),
+      address: JSON.stringify(addressInfo),
+      orderDate: new Date().toLocaleString("en-US", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+      }),
+      phoneNumber: userInfo?.user?.phoneNumber || phoneNumber,
+      userId: userInfo?.user?.uid,
+      status: OrderStatus.PENDING, // Initial status is "Pending"
+      totalAmount: grandTotal,
+      paymentMethod: paymentMethod, // Add payment method to order info
+    };
 
-        // Get user info from localStorage
-        const userInfo = JSON.parse(localStorage.getItem("user"));
-
-        // store order in Appwrite
-        const orderInfo = {
-          cartItems,
-          addressInfo,
-          date: new Date().toLocaleString("en-US", {
-            month: "short",
-            day: "2-digit",
-            year: "numeric",
-          }),
-          phoneNumber: userInfo?.user?.phoneNumber || phoneNumber,
-          userId: userInfo?.user?.uid,
-          paymentId,
+    try {
+      const response = await addOrderToDb(orderInfo);
+      if (response.success) {
+        // Generate and store invoice using the order data WITH the order ID
+        const orderWithId = {
+          ...orderInfo,
+          $id: response.data.$id, // Include the order ID from the response
         };
 
         try {
-          const response = await addOrderToDb(orderInfo);
-          if (response.success) {
-            toast.success("Order placed successfully");
-          } else {
-            toast.error(response.error || "Failed to place order");
-          }
-          window.location.reload();
-        } catch (error) {
-          console.log(error);
-          toast.error("An error occurred");
+          // Silently generate and store invoice without toast messages
+          await generateAndStoreInvoice(orderWithId);
+        } catch (invoiceError) {
+          console.error("Error generating invoice:", invoiceError);
+          // Don't stop the checkout process if invoice fails
         }
-      },
-      theme: {
-        color: "#3399cc",
-      },
-    };
 
-    var pay = new window.Razorpay(options);
-    pay.open();
-    localStorage.removeItem("cart");
+        // Set processing to false
+        setIsProcessing(false);
+
+        // Show the success modal
+        setShowSuccessModal(true);
+
+        // Clear the cart
+        dispatch(clearCart());
+        localStorage.removeItem("cart");
+      } else {
+        setIsProcessing(false);
+        toast.error(response.error || "Failed to place order");
+      }
+    } catch (error) {
+      console.log(error);
+      setIsProcessing(false);
+      toast.error("An error occurred");
+    }
+  };
+
+  // Close the success modal and redirect to home
+  const closeSuccessModal = () => {
+    setShowSuccessModal(false);
+    window.location.href = "/";
   };
 
   useEffect(() => {
@@ -290,12 +314,18 @@ function Cart() {
                 setAddress={setAddress}
                 setPincode={setPincode}
                 setPhoneNumber={setPhoneNumber}
-                buyNow={buyNow}
+                paymentMethod={paymentMethod}
+                setPaymentMethod={setPaymentMethod}
+                buyNow={placeOrder}
+                isProcessing={isProcessing}
               />
             )}
           </div>
         </div>
       </div>
+
+      {/* Order Success Modal */}
+      <OrderSuccess isOpen={showSuccessModal} closeModal={closeSuccessModal} />
     </Layout>
   );
 }

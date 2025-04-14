@@ -12,6 +12,20 @@ import {
 } from "./appwriteConfig";
 import { isUserAdmin } from "./authUtils";
 
+// Order status enum
+export const OrderStatus = {
+  PENDING: "Pending",
+  CONFIRMED: "Confirmed",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+};
+
+// Payment method enum
+export const PaymentMethod = {
+  UPI: "UPI",
+  COD: "COD",
+};
+
 // Product related operations
 export const addProductToDb = async (productData) => {
   try {
@@ -349,7 +363,8 @@ export const getAllOrders = async () => {
   try {
     const response = await databases.listDocuments(
       DATABASE_ID,
-      ORDER_COLLECTION_ID
+      ORDER_COLLECTION_ID,
+      [Query.orderDesc("$createdAt")] // Sort by newest first
     );
     return {
       success: true,
@@ -369,7 +384,7 @@ export const getUserOrders = async (userId) => {
     const response = await databases.listDocuments(
       DATABASE_ID,
       ORDER_COLLECTION_ID,
-      [Query.equal("userId", userId)]
+      [Query.equal("userId", userId), Query.orderDesc("$createdAt")]
     );
     return {
       success: true,
@@ -377,6 +392,72 @@ export const getUserOrders = async (userId) => {
     };
   } catch (error) {
     console.error("Error getting user orders:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+// New functions to manage order status
+export const updateOrderStatus = async (orderId, status) => {
+  try {
+    // First check if the user is an admin
+    const adminCheck = await isUserAdmin();
+    if (!adminCheck.success || !adminCheck.isAdmin) {
+      return {
+        success: false,
+        error: "Permission denied. Only admins can update order status.",
+      };
+    }
+
+    // Validate that the status is one of the allowed values
+    const validStatuses = Object.values(OrderStatus);
+    if (!validStatuses.includes(status)) {
+      return {
+        success: false,
+        error: `Invalid status value. Must be one of: ${validStatuses.join(
+          ", "
+        )}`,
+      };
+    }
+
+    const response = await databases.updateDocument(
+      DATABASE_ID,
+      ORDER_COLLECTION_ID,
+      orderId,
+      { status }
+    );
+    return {
+      success: true,
+      data: response,
+    };
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+export const deleteOrder = async (orderId) => {
+  try {
+    // First check if the user is an admin
+    const adminCheck = await isUserAdmin();
+    if (!adminCheck.success || !adminCheck.isAdmin) {
+      return {
+        success: false,
+        error: "Permission denied. Only admins can delete orders.",
+      };
+    }
+
+    await databases.deleteDocument(DATABASE_ID, ORDER_COLLECTION_ID, orderId);
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error("Error deleting order:", error);
     return {
       success: false,
       error: error.message,

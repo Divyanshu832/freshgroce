@@ -1,122 +1,101 @@
 import { Fragment, useContext, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BsFillCloudSunFill } from "react-icons/bs";
 import { FiSun } from "react-icons/fi";
 import myContext from "../../context/data/myContext";
 import { RxCross2 } from "react-icons/rx";
 import { useSelector } from "react-redux";
-import {
-  logoutUser,
-  getCurrentUser,
-  isUserAdmin,
-} from "../../appwrite/authUtils";
+import { logoutUser } from "../../appwrite/authUtils";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+  const navigate = useNavigate();
 
   const context = useContext(myContext);
   const { toggleMode, mode } = context;
 
-  // Check user login status and admin status
+  // Enhanced authentication check
   useEffect(() => {
-    // First check localStorage for login status
-    const userFromStorage = localStorage.getItem("user");
-
-    if (userFromStorage) {
+    // Function to check user login status
+    const checkLoginStatus = () => {
       try {
-        const parsedUser = JSON.parse(userFromStorage);
-        if (parsedUser && parsedUser.user) {
-          setIsLoggedIn(true);
-
-          // Check if user is admin
-          const checkAdminStatus = async () => {
-            try {
-              const result = await isUserAdmin();
-              if (result.success) {
-                setIsAdmin(result.isAdmin);
-              }
-            } catch (error) {
-              console.error("Error checking admin status:", error);
-            }
-          };
-
-          checkAdminStatus();
+        const userStr = localStorage.getItem("user");
+        if (!userStr) {
+          setIsLoggedIn(false);
+          setIsAdmin(false);
+          setUserInfo(null);
           return;
         }
-      } catch (error) {
-        console.error("Error parsing user from localStorage:", error);
-      }
-    }
 
-    // If no valid user in localStorage, check with Appwrite
-    const checkAuth = async () => {
-      try {
-        const response = await getCurrentUser();
-        if (response.success) {
+        const userData = JSON.parse(userStr);
+        if (userData && userData.user) {
           setIsLoggedIn(true);
+          setUserInfo(userData.user);
 
-          // Check if user is admin
-          const adminResult = await isUserAdmin();
-          if (adminResult.success) {
-            setIsAdmin(adminResult.isAdmin);
-          }
-
-          // Store user in localStorage if not already there
-          if (!userFromStorage) {
-            const userData = {
-              user: {
-                uid: response.data.$id,
-                email: response.data.email,
-                name: response.data.name,
-              },
-            };
-            localStorage.setItem("user", JSON.stringify(userData));
-          }
+          // Check if user is admin (you might have a different way to determine this)
+          setIsAdmin(userData.user.isAdmin || false);
         } else {
           setIsLoggedIn(false);
           setIsAdmin(false);
+          setUserInfo(null);
         }
       } catch (error) {
-        console.error("Error checking auth status:", error);
+        console.error("Error checking login status:", error);
         setIsLoggedIn(false);
         setIsAdmin(false);
+        setUserInfo(null);
       }
     };
 
-    checkAuth();
+    // Initial check when component mounts
+    checkLoginStatus();
+
+    // Also set up an event listener for storage events (helps with cross-tab synchronization)
+    const handleStorageChange = (e) => {
+      if (e.key === "user" || e.key === null) {
+        checkLoginStatus();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Clean up the event listener
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
-  const user = JSON.parse(localStorage.getItem("user"));
-
+  // Enhanced logout function with better error handling and navigation
   const logout = async () => {
     try {
-      // Call the logoutUser function to kill the Appwrite session
-      const result = await logoutUser();
-      if (result.success) {
-        // Clear local storage after successful logout
-        localStorage.clear("user");
-        window.location.href = "/login";
-      } else {
-        console.error("Logout failed:", result.error);
-        // Still clear local storage and redirect even if server logout fails
-        localStorage.clear("user");
-        window.location.href = "/login";
-      }
+      // Clear localStorage first for immediate UI update
+      localStorage.clear();
+
+      // Update state
+      setIsLoggedIn(false);
+      setIsAdmin(false);
+      setUserInfo(null);
+
+      // Then try to clear the Appwrite session (in background)
+      await logoutUser();
+
+      // Navigate to login page
+      navigate("/login");
     } catch (error) {
       console.error("Error during logout:", error);
-      // Fallback: clear local storage and redirect
-      localStorage.clear("user");
-      window.location.href = "/login";
+      // Still make sure to navigate away
+      navigate("/login");
     }
   };
 
   const cartItems = useSelector((state) => state.cart);
 
   return (
-    <div className="bg-white sticky top-0 z-50  ">
+    <div className="bg-white sticky top-0 z-50">
       {/* Mobile menu */}
       <Transition.Root show={open} as={Fragment}>
         <Dialog as="div" className="relative z-40 lg:hidden" onClose={setOpen}>
@@ -162,7 +141,7 @@ export default function Navbar() {
                 <div className="space-y-6 border-t border-gray-200 px-4 py-6">
                   <Link
                     to={"/allproducts"}
-                    className="text-sm font-medium text-gray-900 "
+                    className="text-sm font-medium text-gray-900"
                     style={{ color: mode === "dark" ? "white" : "" }}
                   >
                     All Products
@@ -177,21 +156,19 @@ export default function Navbar() {
                     </Link>
                   </div>
 
-                  {isAdmin ? (
+                  {isAdmin && (
                     <div className="flow-root">
                       <Link
                         to={"/dashboard"}
                         className="-m-2 block p-2 font-medium text-gray-900"
                         style={{ color: mode === "dark" ? "white" : "" }}
                       >
-                        admin
+                        Admin
                       </Link>
                     </div>
-                  ) : (
-                    ""
                   )}
 
-                  {isLoggedIn || user ? (
+                  {isLoggedIn ? (
                     <div className="flow-root">
                       <a
                         onClick={logout}
@@ -220,7 +197,7 @@ export default function Navbar() {
                       <img
                         className="inline-block w-10 h-10 rounded-full"
                         src="/pfp.png"
-                        alt="Dan_Abromov"
+                        alt="User Profile"
                       />
                     </Link>
                   </div>
@@ -239,7 +216,6 @@ export default function Navbar() {
                     >
                       INDIA
                     </span>
-                    <span className="sr-only">, change currency</span>
                   </a>
                 </div>
               </Dialog.Panel>
@@ -248,12 +224,12 @@ export default function Navbar() {
         </Dialog>
       </Transition.Root>
 
-      {/* desktop  */}
+      {/* Desktop  */}
       <header className="relative bg-white">
         <p
           className="flex h-10 items-center justify-center bg-green-600 px-4 text-sm font-medium text-white sm:px-6 lg:px-8"
           style={{
-            backgroundColor: "#16a34a", // Always green in both light and dark mode
+            backgroundColor: "#16a34a",
             color: "white",
           }}
         >
@@ -262,7 +238,7 @@ export default function Navbar() {
 
         <nav
           aria-label="Top"
-          className="bg-gray-100 px-4 sm:px-6 lg:px-8 shadow-xl "
+          className="bg-gray-100 px-4 sm:px-6 lg:px-8 shadow-xl"
           style={{
             backgroundColor: mode === "dark" ? "#282c34" : "",
             color: mode === "dark" ? "white" : "",
@@ -284,13 +260,13 @@ export default function Navbar() {
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
-                  stroke-width="1.5"
+                  strokeWidth="1.5"
                   stroke="currentColor"
-                  class="w-6 h-6"
+                  className="w-6 h-6"
                 >
                   <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
                   />
                 </svg>
@@ -323,32 +299,30 @@ export default function Navbar() {
                   {/* Desktop navigation menu items */}
                   <Link
                     to={"/allproducts"}
-                    className="text-sm font-medium text-gray-700 "
+                    className="text-sm font-medium text-gray-700"
                     style={{ color: mode === "dark" ? "white" : "" }}
                   >
                     All Products
                   </Link>
                   <Link
                     to={"/order"}
-                    className="text-sm font-medium text-gray-700 "
+                    className="text-sm font-medium text-gray-700"
                     style={{ color: mode === "dark" ? "white" : "" }}
                   >
                     Order
                   </Link>
 
-                  {isAdmin ? (
+                  {isAdmin && (
                     <Link
                       to={"/dashboard"}
-                      className="text-sm font-medium text-gray-700 "
+                      className="text-sm font-medium text-gray-700"
                       style={{ color: mode === "dark" ? "white" : "" }}
                     >
                       Admin
                     </Link>
-                  ) : (
-                    ""
                   )}
 
-                  {isLoggedIn || user ? (
+                  {isLoggedIn ? (
                     <a
                       onClick={logout}
                       className="text-sm font-medium text-gray-700 cursor-pointer"
@@ -368,7 +342,7 @@ export default function Navbar() {
                 </div>
 
                 <div className="hidden lg:ml-8 lg:flex">
-                  <a href="#" className="flex items-center text-gray-700 ">
+                  <a href="#" className="flex items-center text-gray-700">
                     <img
                       src="https://ecommerce-sk.vercel.app/img/indiaflag.png"
                       alt=""
@@ -383,25 +357,22 @@ export default function Navbar() {
                   </a>
                 </div>
                 <div className="hidden lg:ml-8 lg:flex">
-                  <a href="#" className="flex items-center text-gray-700 ">
+                  <a href="#" className="flex items-center text-gray-700">
                     <img
                       className="inline-block w-10 h-10 rounded-full"
                       src="/pfp.png"
-                      alt="Dan_Abromov"
+                      alt="User Profile"
                     />
                   </a>
                 </div>
 
-                {/* Search */}
+                {/* Theme Toggle */}
                 <div className="flex lg:ml-6">
-                  <button className="" onClick={toggleMode}>
-                    {/* <MdDarkMode size={35} style={{ color: mode === 'dark' ? 'white' : '' }} /> */}
+                  <button onClick={toggleMode}>
                     {mode === "light" ? (
-                      <FiSun className="" size={30} />
-                    ) : "dark" ? (
-                      <BsFillCloudSunFill size={30} />
+                      <FiSun size={30} />
                     ) : (
-                      ""
+                      <BsFillCloudSunFill size={30} />
                     )}
                   </button>
                 </div>
@@ -428,7 +399,7 @@ export default function Navbar() {
                       />
                     </svg>
                     <span
-                      className="ml-2 text-sm font-medium text-gray-700 group-"
+                      className="ml-2 text-sm font-medium text-gray-700"
                       style={{ color: mode === "dark" ? "white" : "" }}
                     >
                       {cartItems.length}

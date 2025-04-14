@@ -18,15 +18,34 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AddProduct from "./pages/admin/pages/AddProduct";
 import UpdateProduct from "./pages/admin/pages/UpdateProduct";
-import { isUserAdmin } from "./appwrite/authUtils";
+import {
+  isUserAdmin,
+  isAuthenticated,
+  synchronizeUserState,
+} from "./appwrite/authUtils";
 import AllProducts from "./pages/allproducts/AllProducts";
 
 function App() {
+  // Synchronize user state when app first loads
+  useEffect(() => {
+    const syncUserState = async () => {
+      await synchronizeUserState();
+    };
+    syncUserState();
+  }, []);
+
   return (
     <MyState>
       <Router>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedPublicRoute>
+                <Home />
+              </ProtectedPublicRoute>
+            }
+          />
           <Route
             path="/order"
             element={
@@ -35,7 +54,14 @@ function App() {
               </ProtectedRoutes>
             }
           />
-          <Route path="/cart" element={<Cart />} />
+          <Route
+            path="/cart"
+            element={
+              <ProtectedRoutes>
+                <Cart />
+              </ProtectedRoutes>
+            }
+          />
           <Route
             path="/dashboard"
             element={
@@ -44,7 +70,14 @@ function App() {
               </ProtectedRoutesForAdmin>
             }
           />
-          <Route path="/productinfo/:id" element={<ProductInfo />} />
+          <Route
+            path="/productinfo/:id"
+            element={
+              <ProtectedPublicRoute>
+                <ProductInfo />
+              </ProtectedPublicRoute>
+            }
+          />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route
@@ -63,7 +96,14 @@ function App() {
               </ProtectedRoutesForAdmin>
             }
           />
-          <Route path="/allproducts" element={<AllProducts />}/>
+          <Route
+            path="/allproducts"
+            element={
+              <ProtectedPublicRoute>
+                <AllProducts />
+              </ProtectedPublicRoute>
+            }
+          />
           <Route path="/*" element={<NoPage />} />
         </Routes>
         <ToastContainer />
@@ -74,12 +114,79 @@ function App() {
 
 export default App;
 
+// For fully authenticated routes (requires login)
 export const ProtectedRoutes = ({ children }) => {
-  if (localStorage.getItem("user")) {
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuth, setIsAuth] = useState(false);
+
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        // Always check with Appwrite first for the source of truth
+        const authStatus = await isAuthenticated();
+
+        if (authStatus.success && authStatus.isAuthenticated) {
+          // Valid session exists, ensure localStorage is updated
+          await synchronizeUserState();
+          setIsAuth(true);
+        } else {
+          // No valid session with Appwrite, clear any stale localStorage data
+          localStorage.removeItem("user");
+          setIsAuth(false);
+        }
+      } catch (error) {
+        console.error("Authentication check error:", error);
+        localStorage.removeItem("user");
+        setIsAuth(false);
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+
+    checkAuthStatus();
+  }, []);
+
+  if (!authChecked) {
+    // Show loading state while checking authentication
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+      </div>
+    );
+  }
+
+  if (isAuth) {
     return children;
   } else {
     return <Navigate to="/login" />;
   }
+};
+
+// For public routes that check auth status but don't require login
+export const ProtectedPublicRoute = ({ children }) => {
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        // Check with Appwrite for valid session
+        const authStatus = await isAuthenticated();
+
+        if (authStatus.success && authStatus.isAuthenticated) {
+          // Valid session exists, synchronize localStorage
+          await synchronizeUserState();
+        } else {
+          // No valid session, clean up any stale data
+          localStorage.removeItem("user");
+        }
+      } catch (error) {
+        console.error("Error checking auth status on public route:", error);
+        localStorage.removeItem("user");
+      }
+    };
+
+    checkAuthStatus();
+  }, []);
+
+  return children;
 };
 
 export const ProtectedRoutesForAdmin = ({ children }) => {
@@ -88,9 +195,9 @@ export const ProtectedRoutesForAdmin = ({ children }) => {
 
   useEffect(() => {
     const checkAdminStatus = async () => {
-      // First check if user is logged in
-      const user = localStorage.getItem("user");
-      if (!user) {
+      // First check if user is authenticated with server session
+      const authStatus = await isAuthenticated();
+      if (!authStatus.success || !authStatus.isAuthenticated) {
         setLoading(false);
         return;
       }
@@ -112,7 +219,7 @@ export const ProtectedRoutesForAdmin = ({ children }) => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        Loading...
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
       </div>
     );
   }

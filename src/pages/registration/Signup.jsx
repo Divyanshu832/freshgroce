@@ -1,31 +1,37 @@
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import myContext from "../../context/data/myContext";
 import { toast } from "react-toastify";
-import { signInWithGoogle, getCurrentUser } from "../../appwrite/authUtils";
+import { signInWithGoogle, isAuthenticated } from "../../appwrite/authUtils";
 import Loader from "../../components/loader/loader";
 
 function Signup() {
   const navigate = useNavigate();
   const context = useContext(myContext);
   const { loading, setLoading } = context;
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
 
   // Check if user is already logged in
   useEffect(() => {
     const checkUserStatus = async () => {
+      setLoading(true);
+      setIsAuthenticating(true);
       try {
-        const userResponse = await getCurrentUser();
-        if (userResponse.success) {
-          // User is already logged in, redirect to home
+        const authStatus = await isAuthenticated();
+        if (authStatus.success && authStatus.isAuthenticated) {
+          // User is already authenticated, redirect to home
           navigate("/");
         }
       } catch (error) {
         console.error("Error checking user status:", error);
+      } finally {
+        setLoading(false);
+        setIsAuthenticating(false);
       }
     };
 
     checkUserStatus();
-  }, [navigate]);
+  }, [navigate, setLoading]);
 
   // Handle Google Sign Up
   const handleGoogleSignUp = async () => {
@@ -34,7 +40,6 @@ function Signup() {
       await signInWithGoogle();
       // The OAuth process will redirect to success URL after authentication
       // Upon return, the useEffect in Login component will handle user creation in database
-      setLoading(false);
     } catch (error) {
       console.error(error);
       toast.error("Signup Failed", {
@@ -50,6 +55,11 @@ function Signup() {
       setLoading(false);
     }
   };
+
+  // If still checking authentication status, show loader
+  if (isAuthenticating) {
+    return <Loader />;
+  }
 
   return (
     <div className="flex justify-center items-center h-screen">
