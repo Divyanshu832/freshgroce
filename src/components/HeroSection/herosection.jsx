@@ -5,7 +5,7 @@ function HeroSection() {
     <div className="w-full overflow-hidden">
       <img
         className="w-full h-auto object-cover"
-        src="/hero_sec2.png"
+        src="/hero_sec.jpg"
         alt="Fresh Groceries"
       />
     </div>
