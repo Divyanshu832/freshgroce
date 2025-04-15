@@ -92,7 +92,7 @@ export const getAllProducts = async () => {
       const response = await databases.listDocuments(
         DATABASE_ID,
         PRODUCT_COLLECTION_ID,
-        [Query.orderDesc("$createdAt")]
+        [Query.orderDesc("$createdAt"), Query.limit(100)] // Increased limit to 100
       );
 
       // Map the response to include the date field with proper format
