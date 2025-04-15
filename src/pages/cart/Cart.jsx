@@ -44,6 +44,7 @@ function Cart() {
   const [pincode, setPincode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [area, setArea] = useState(""); // Add area state
 
   // Add item quantity
   const increaseQuantity = (item) => {
@@ -65,10 +66,11 @@ function Cart() {
     // validation
     if (
       name === "" ||
-      address == "" ||
-      pincode == "" ||
-      phoneNumber == "" ||
-      paymentMethod == ""
+      address === "" ||
+      pincode === "" ||
+      phoneNumber === "" ||
+      paymentMethod === "" ||
+      area === ""
     ) {
       return toast.error("All fields are required", {
         position: "top-center",
@@ -82,6 +84,23 @@ function Cart() {
       });
     }
 
+    // Check if user is logged in by verifying localStorage
+    const userInfo = JSON.parse(localStorage.getItem("user"));
+    if (!userInfo || !userInfo.user || !userInfo.user.uid) {
+      // Handle case where user is not logged in or userId is missing
+      toast.error("Please log in to place an order", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+      return;
+    }
+
     // Set processing state to true - this will show the loading indicator
     setIsProcessing(true);
 
@@ -90,6 +109,7 @@ function Cart() {
       address,
       pincode,
       phoneNumber,
+      area,
       date: new Date().toLocaleString("en-US", {
         month: "short",
         day: "2-digit",
@@ -97,10 +117,7 @@ function Cart() {
       }),
     };
 
-    // Get user info from localStorage
-    const userInfo = JSON.parse(localStorage.getItem("user"));
-
-    // store order in Appwrite
+    // store order in Appwrite with guaranteed userId
     const orderInfo = {
       items: JSON.stringify(cartItems),
       address: JSON.stringify(addressInfo),
@@ -109,8 +126,8 @@ function Cart() {
         day: "2-digit",
         year: "numeric",
       }),
-      phoneNumber: userInfo?.user?.phoneNumber || phoneNumber,
-      userId: userInfo?.user?.uid,
+      phoneNumber: userInfo.user.phoneNumber || phoneNumber,
+      userId: userInfo.user.uid, // This is now guaranteed to exist
       status: OrderStatus.PENDING, // Initial status is "Pending"
       totalAmount: grandTotal,
       paymentMethod: paymentMethod, // Add payment method to order info
@@ -316,6 +333,8 @@ function Cart() {
                 setPhoneNumber={setPhoneNumber}
                 paymentMethod={paymentMethod}
                 setPaymentMethod={setPaymentMethod}
+                area={area}
+                setArea={setArea}
                 buyNow={placeOrder}
                 isProcessing={isProcessing}
               />

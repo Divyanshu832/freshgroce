@@ -145,6 +145,32 @@ const OrdersTab = () => {
     return "N/A";
   };
 
+  // Get customer area from address
+  const getCustomerArea = (order) => {
+    if (order.addressInfo?.area) {
+      return order.addressInfo.area;
+    }
+
+    // Try to parse address string if it exists
+    if (order.address && typeof order.address === "string") {
+      try {
+        const addressData = JSON.parse(order.address);
+
+        // Get the area field directly
+        if (addressData.area) {
+          return addressData.area;
+        }
+
+        return "N/A";
+      } catch (e) {
+        console.error("Error parsing address data for area:", e);
+        return "N/A";
+      }
+    }
+
+    return "N/A";
+  };
+
   // Format the date string
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -184,6 +210,7 @@ const OrdersTab = () => {
                 <th className="py-2 px-3 text-left">Amount</th>
                 <th className="py-2 px-3 text-left">Payment</th>
                 <th className="py-2 px-3 text-left">Status</th>
+                <th className="py-2 px-3 text-left">Area</th>
                 <th className="py-2 px-3 text-left">Invoice</th>
                 <th className="py-2 px-3 text-left">Actions</th>
               </tr>
@@ -220,6 +247,7 @@ const OrdersTab = () => {
                       {order.status || "pending"}
                     </span>
                   </td>
+                  <td className="py-2 px-3">{getCustomerArea(order)}</td>
                   <td className="py-2 px-3">
                     {order.invoiceId ? (
                       <div className="flex flex-col">

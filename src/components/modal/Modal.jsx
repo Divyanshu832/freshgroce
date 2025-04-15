@@ -14,6 +14,8 @@ export default function Modal({
   setPhoneNumber,
   paymentMethod,
   setPaymentMethod,
+  area,
+  setArea,
   buyNow,
   isProcessing,
 }) {
@@ -43,7 +45,7 @@ export default function Modal({
       </div>
 
       <Transition appear show={isOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={closeModal}>
+        <Dialog as="div" className="relative z-50" onClose={closeModal}>
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -56,7 +58,7 @@ export default function Modal({
             <div className="fixed inset-0 bg-black bg-opacity-25" />
           </Transition.Child>
 
-          <div className="fixed inset-0 overflow-y-auto">
+          <div className="fixed inset-0 overflow-y-auto z-50">
             <div className="flex min-h-full items-center justify-center p-4 text-center">
               <Transition.Child
                 as={Fragment}
@@ -109,6 +111,39 @@ export default function Modal({
                                 disabled={isProcessing}
                               />
                             </div>
+
+                            <div>
+                              <label
+                                htmlFor="area"
+                                className="block mb-2 text-sm font-medium text-gray-900"
+                              >
+                                Select Area
+                              </label>
+                              <select
+                                value={area}
+                                onChange={(e) => setArea(e.target.value)}
+                                name="area"
+                                id="area"
+                                className="border outline-0 border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 bg-gray-100"
+                                required
+                                disabled={isProcessing}
+                              >
+                                <option value="">Select your area</option>
+                                <option value="Ananda Nagar">
+                                  Ananda Nagar
+                                </option>
+                                <option value="Patel Nagar">Patel Nagar</option>
+                                <option value="RatnaGiri">RatnaGiri</option>
+                                <option value="Piplani">Piplani</option>
+                                <option value="Indrapuri Sector C">
+                                  Indrapuri Sector C
+                                </option>
+                              </select>
+                              <p className="mt-1 text-xs text-red-500">
+                                *Currently, We are serving only 5 locations
+                              </p>
+                            </div>
+
                             <div>
                               <label
                                 htmlFor="pincode"
