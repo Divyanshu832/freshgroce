@@ -195,19 +195,40 @@ export const ProtectedRoutesForAdmin = ({ children }) => {
 
   useEffect(() => {
     const checkAdminStatus = async () => {
-      // First check if user is authenticated with server session
-      const authStatus = await isAuthenticated();
-      if (!authStatus.success || !authStatus.isAuthenticated) {
-        setLoading(false);
-        return;
-      }
-
-      // Check if user is an admin via Appwrite Teams
       try {
-        const result = await isUserAdmin();
-        setIsAdmin(result.isAdmin);
-      } catch (error) {
-        console.error("Error checking admin status:", error);
+        // First check if there's a user stored in localStorage
+        const userStr = localStorage.getItem("user");
+
+        if (userStr) {
+          try {
+            // Now check if user is admin via Appwrite Teams API
+            const result = await isUserAdmin();
+            if (result.success && result.isAdmin) {
+              setIsAdmin(true);
+              setLoading(false);
+              return;
+            }
+          } catch (adminCheckError) {
+            console.error("Error checking admin status:", adminCheckError);
+            // Continue with fallback check if team check fails
+          }
+        }
+
+        // If we get here, either no user in localStorage or the admin check failed
+        // Try server authentication as backup
+        try {
+          const authStatus = await isAuthenticated();
+          if (authStatus.success && authStatus.isAuthenticated) {
+            await synchronizeUserState();
+
+            // Check admin status again
+            const retryAdminCheck = await isUserAdmin();
+            setIsAdmin(retryAdminCheck.success && retryAdminCheck.isAdmin);
+          }
+        } catch (authError) {
+          console.error("Authentication error:", authError);
+          setIsAdmin(false);
+        }
       } finally {
         setLoading(false);
       }

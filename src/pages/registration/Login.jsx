@@ -14,7 +14,7 @@ function Login() {
   const navigate = useNavigate();
   const context = useContext(myContext);
   const { loading, setLoading } = context;
-  const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -22,13 +22,8 @@ function Login() {
       setLoading(true);
       setIsAuthenticating(true);
       try {
-        // First clear any potentially stale session data
-        if (window.location.search.includes("success=true")) {
-          // This is a redirect back from OAuth
-          console.log("Detected OAuth redirect - fetching user data");
-        }
-
         const authStatus = await isAuthenticated();
+        console.log(authStatus)
         if (authStatus.success && authStatus.isAuthenticated) {
           // User is authenticated in Appwrite
           // Force update localStorage with current user data

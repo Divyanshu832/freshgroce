@@ -90,8 +90,6 @@ export const isAuthenticated = async () => {
     const currentUser = await account.get();
 
     if (currentUser) {
-      // If we have a valid session but localStorage doesn't match or is missing,
-      // update localStorage to maintain consistency across browsers
       const localUser = localStorage.getItem("user");
       if (!localUser) {
         localStorage.setItem(
@@ -155,7 +153,16 @@ export const synchronizeUserState = async () => {
     const currentUser = await account.get();
 
     if (currentUser) {
-      // Update localStorage with current user data
+      // Check if the user is an admin
+      let isAdmin = false;
+      try {
+        const adminResult = await isUserAdmin();
+        isAdmin = adminResult.success && adminResult.isAdmin;
+      } catch (adminError) {
+        console.error("Error checking admin status during sync:", adminError);
+      }
+
+      // Update localStorage with current user data and admin status
       localStorage.setItem(
         "user",
         JSON.stringify({
@@ -163,12 +170,14 @@ export const synchronizeUserState = async () => {
             uid: currentUser.$id,
             email: currentUser.email,
             name: currentUser.name,
+            isAdmin: isAdmin, // Include admin status
           },
         })
       );
       return {
         success: true,
         synchronized: true,
+        isAdmin,
       };
     } else {
       // Remove user data if no session exists
@@ -312,6 +321,24 @@ export const isUserAdmin = async () => {
     };
   } catch (error) {
     console.error("Error checking admin status:", error);
+
+    // Try fallback method - check if admin status is stored in localStorage
+    try {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const userData = JSON.parse(userStr);
+        if (userData && userData.user && userData.user.isAdmin) {
+          return {
+            success: true,
+            isAdmin: true,
+            source: "localStorage",
+          };
+        }
+      }
+    } catch (localStorageError) {
+      console.error("Error reading from localStorage:", localStorageError);
+    }
+
     return {
       success: false,
       isAdmin: false,
