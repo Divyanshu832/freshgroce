@@ -31,6 +31,82 @@ export const signInWithGoogle = async () => {
   }
 };
 
+// Email OTP Authentication Functions
+
+// Send Magic URL or OTP to email for passwordless authentication
+export const sendEmailOTP = async (email) => {
+  try {
+    // Create a magic URL token using the correct method
+    const result = await account.createMagicURLToken(
+      ID.unique(),
+      email,
+      window.location.origin + "/verify-otp" // Redirect URL after email is clicked
+    );
+
+    return {
+      success: true,
+      message: "OTP sent to your email successfully",
+      data: result, // Include token data in response
+    };
+  } catch (error) {
+    console.error("Error sending email OTP:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+// Verify the OTP or magic URL session
+export const verifyEmailOTP = async (userId, secret) => {
+  try {
+    // Create a session with the magic URL token
+    await account.createSession(userId, secret);
+
+    // After successful verification, get current user
+    const currentUser = await account.get();
+
+    if (currentUser) {
+      // Create or get existing user in database
+      const userData = {
+        name: currentUser.name || currentUser.email.split("@")[0], // Use email prefix as name if name is not available
+        email: currentUser.email,
+      };
+
+      const userInDb = await createUser(userData);
+
+      // Store user data in localStorage
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          user: {
+            uid: currentUser.$id,
+            email: currentUser.email,
+            name: currentUser.name || userData.name,
+          },
+        })
+      );
+
+      return {
+        success: true,
+        data: currentUser,
+        userInDb: userInDb.data,
+      };
+    }
+
+    return {
+      success: false,
+      message: "Failed to get user after verification",
+    };
+  } catch (error) {
+    console.error("Error verifying email OTP:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
 // Get the current user and ensure they exist in the database
 export const getCurrentUser = async () => {
   try {

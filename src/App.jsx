@@ -14,6 +14,7 @@ import Dashboard from "./pages/admin/dashboard/Dashboard";
 import ProductInfo from "./pages/productinfo/ProductInfo";
 import Login from "./pages/registration/Login";
 import Signup from "./pages/registration/Signup";
+import VerifyOTP from "./pages/registration/VerifyOTP";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AddProduct from "./pages/admin/pages/AddProduct";
@@ -80,6 +81,7 @@ function App() {
           />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-otp" element={<VerifyOTP />} />
           <Route
             path="/addproduct"
             element={

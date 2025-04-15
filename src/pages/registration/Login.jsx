@@ -7,6 +7,7 @@ import {
   getCurrentUser,
   isAuthenticated,
   synchronizeUserState,
+  sendEmailOTP,
 } from "../../appwrite/authUtils";
 import Loader from "../../components/loader/loader";
 
@@ -15,6 +16,8 @@ function Login() {
   const context = useContext(myContext);
   const { loading, setLoading } = context;
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [email, setEmail] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -23,7 +26,7 @@ function Login() {
       setIsAuthenticating(true);
       try {
         const authStatus = await isAuthenticated();
-        console.log(authStatus)
+        console.log(authStatus);
         if (authStatus.success && authStatus.isAuthenticated) {
           // User is authenticated in Appwrite
           // Force update localStorage with current user data
@@ -85,6 +88,35 @@ function Login() {
     }
   };
 
+  // Handle Email OTP authentication
+  const handleEmailOTP = async (e) => {
+    e.preventDefault();
+
+    if (!email.trim()) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await sendEmailOTP(email);
+
+      if (result.success) {
+        setOtpSent(true);
+        toast.success(
+          "OTP sent to your email. Please check your inbox and spam folders."
+        );
+      } else {
+        toast.error(result.error || "Failed to send OTP. Please try again.");
+      }
+    } catch (error) {
+      console.error("Email OTP error:", error);
+      toast.error("Failed to send OTP. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // If still checking authentication status, show loader
   if (isAuthenticating) {
     return <Loader />;
@@ -93,7 +125,7 @@ function Login() {
   return (
     <div className="flex justify-center items-center h-screen">
       {loading && <Loader />}
-      <div className="bg-gray-800 px-10 py-10 rounded-xl">
+      <div className="bg-gray-800 px-10 py-10 rounded-xl w-screen max-w-md">
         <div className="">
           <h1 className="text-center text-white text-xl mb-4 font-bold">
             Login
@@ -131,6 +163,57 @@ function Login() {
             Sign in with Google
           </button>
         </div>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-500"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-gray-800 px-2 text-gray-300">
+              Or login with email
+            </span>
+          </div>
+        </div>
+
+        {!otpSent ? (
+          <form onSubmit={handleEmailOTP} className="mb-6">
+            <div className="mb-4">
+              <label
+                className="block text-white text-sm font-bold mb-2"
+                htmlFor="email"
+              >
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 text-gray-700 border rounded focus:outline-none focus:border-green-500"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+            >
+              Send Login OTP
+            </button>
+          </form>
+        ) : (
+          <div className="mb-6 p-4 bg-green-100 rounded text-green-800 text-center">
+            <p>OTP sent to {email}</p>
+            <p className="text-sm mt-2">
+              Please check your email for a login link
+            </p>
+            <button
+              onClick={() => setOtpSent(false)}
+              className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              Use different email
+            </button>
+          </div>
+        )}
 
         <div>
           <h2 className="text-white">
