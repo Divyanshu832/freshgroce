@@ -1,9 +1,68 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import myContext from "../../../context/data/myContext";
+import { useNavigate, useLocation } from "react-router-dom";
+import { toast } from "react-toastify";
+import {
+  databases,
+  DATABASE_ID,
+  PRODUCT_COLLECTION_ID,
+} from "../../../appwrite/appwriteConfig";
 
 function UpdateProduct() {
   const context = useContext(myContext);
   const { products, setProducts, updateProduct } = context;
+  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Get product ID from URL query parameter
+  useEffect(() => {
+    const fetchProductData = async () => {
+      try {
+        // Extract productId from URL query parameters
+        const queryParams = new URLSearchParams(location.search);
+        const productId = queryParams.get("id");
+
+        if (!productId) {
+          toast.error("No product ID provided");
+          navigate("/dashboard");
+          return;
+        }
+
+        // Fetch product data from database
+        const response = await databases.getDocument(
+          DATABASE_ID,
+          PRODUCT_COLLECTION_ID,
+          productId
+        );
+
+        if (response) {
+          setProducts(response);
+          setLoading(false);
+        } else {
+          toast.error("Product not found");
+          navigate("/dashboard");
+        }
+      } catch (error) {
+        console.error("Error fetching product:", error);
+        toast.error("Error fetching product details");
+        navigate("/dashboard");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProductData();
+  }, [location.search, navigate, setProducts]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className=" flex justify-center items-center h-screen">
@@ -19,7 +78,7 @@ function UpdateProduct() {
               onChange={(e) =>
                 setProducts({ ...products, title: e.target.value })
               }
-              value={products.title}
+              value={products.title || ""}
               name="title"
               className=" bg-gray-600 mb-4 px-2 py-2 w-full lg:w-[20em] rounded-lg text-white placeholder:text-gray-200 outline-none"
               placeholder="Product title"
@@ -32,7 +91,7 @@ function UpdateProduct() {
               onChange={(e) =>
                 setProducts({ ...products, price: e.target.value })
               }
-              value={products.price}
+              value={products.price || ""}
               className=" bg-gray-600 mb-4 px-2 py-2 w-full lg:w-[20em] rounded-lg text-white placeholder:text-gray-200 outline-none"
               placeholder="Product price"
             />
@@ -44,7 +103,7 @@ function UpdateProduct() {
               onChange={(e) =>
                 setProducts({ ...products, imageUrl: e.target.value })
               }
-              value={products.imageUrl}
+              value={products.imageUrl || ""}
               className=" bg-gray-600 mb-4 px-2 py-2 w-full lg:w-[20em] rounded-lg text-white placeholder:text-gray-200 outline-none"
               placeholder="Product imageUrl"
             />
@@ -56,7 +115,7 @@ function UpdateProduct() {
               onChange={(e) =>
                 setProducts({ ...products, category: e.target.value })
               }
-              value={products.category}
+              value={products.category || ""}
               className=" bg-gray-600 mb-4 px-2 py-2 w-full lg:w-[20em] rounded-lg text-white placeholder:text-gray-200 outline-none"
               placeholder="Product category"
             />
@@ -71,7 +130,7 @@ function UpdateProduct() {
               }
               className=" bg-gray-600 mb-4 px-2 py-2 w-full lg:w-[20em] rounded-lg text-white placeholder:text-gray-200 outline-none"
               placeholder="Product description"
-              value={products.description}
+              value={products.description || ""}
             ></textarea>
           </div>
 

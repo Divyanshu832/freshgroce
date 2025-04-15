@@ -1,73 +1,103 @@
 import { Fragment, useContext, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { BsFillCloudSunFill } from "react-icons/bs";
 import { FiSun } from "react-icons/fi";
 import myContext from "../../context/data/myContext";
 import { RxCross2 } from "react-icons/rx";
 import { useSelector } from "react-redux";
-import { logoutUser } from "../../appwrite/authUtils";
+import { logoutUser, isAuthenticated } from "../../appwrite/authUtils";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation(); // Get current location/route
 
   const context = useContext(myContext);
   const { toggleMode, mode } = context;
 
-  // Enhanced authentication check
+  // Enhanced authentication check - now runs on location change and initial load
   useEffect(() => {
-    // Function to check user login status
-    const checkLoginStatus = () => {
+    async function checkLoginStatus() {
+      setCheckingAuth(true);
       try {
+        // First check localStorage for quick UI update
         const userStr = localStorage.getItem("user");
-        if (!userStr) {
-          setIsLoggedIn(false);
-          setIsAdmin(false);
-          setUserInfo(null);
-          return;
+        let localUser = null;
+
+        if (userStr) {
+          try {
+            localUser = JSON.parse(userStr);
+            // Set initial state from localStorage
+            if (localUser && localUser.user) {
+              setIsLoggedIn(true);
+              setUserInfo(localUser.user);
+              setIsAdmin(localUser.user.isAdmin || false);
+            }
+          } catch (parseError) {
+            console.error("Error parsing user data:", parseError);
+          }
         }
 
-        const userData = JSON.parse(userStr);
-        if (userData && userData.user) {
-          setIsLoggedIn(true);
-          setUserInfo(userData.user);
+        // Then verify with Appwrite for source of truth
+        const authStatus = await isAuthenticated();
+        if (authStatus.success && authStatus.isAuthenticated) {
+          // User is authenticated according to Appwrite
+          if (!isLoggedIn) {
+            setIsLoggedIn(true);
 
-          // Check if user is admin (you might have a different way to determine this)
-          setIsAdmin(userData.user.isAdmin || false);
+            // Update user info from Appwrite if available
+            if (authStatus.user) {
+              setUserInfo({
+                uid: authStatus.user.$id,
+                email: authStatus.user.email,
+                name: authStatus.user.name,
+                isAdmin: localUser?.user?.isAdmin || false,
+              });
+              setIsAdmin(localUser?.user?.isAdmin || false);
+            }
+          }
         } else {
+          // Not authenticated according to Appwrite
           setIsLoggedIn(false);
           setIsAdmin(false);
           setUserInfo(null);
         }
       } catch (error) {
-        console.error("Error checking login status:", error);
+        console.error("Error checking authentication status:", error);
         setIsLoggedIn(false);
         setIsAdmin(false);
         setUserInfo(null);
+      } finally {
+        setCheckingAuth(false);
       }
-    };
+    }
 
-    // Initial check when component mounts
+    // Run auth check when component mounts or location changes
     checkLoginStatus();
 
-    // Also set up an event listener for storage events (helps with cross-tab synchronization)
+    // Set up custom event listener for login state changes
+    const handleLoginChange = () => checkLoginStatus();
+    window.addEventListener("login-state-changed", handleLoginChange);
+
+    // Set up storage event listener for cross-tab synchronization
     const handleStorageChange = (e) => {
       if (e.key === "user" || e.key === null) {
         checkLoginStatus();
       }
     };
-
     window.addEventListener("storage", handleStorageChange);
 
-    // Clean up the event listener
+    // Clean up event listeners
     return () => {
+      window.removeEventListener("login-state-changed", handleLoginChange);
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, []);
+  }, [location.pathname]); // Re-run when route changes
 
   // Enhanced logout function with better error handling and navigation
   const logout = async () => {

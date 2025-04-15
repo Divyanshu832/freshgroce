@@ -358,10 +358,7 @@ function DashboardTab() {
                                   </svg>
                                 </div>
                                 <div>
-                                  <Link
-                                    to={"/updateproduct"}
-                                    onClick={edithandle(item)}
-                                  >
+                                  <Link to={`/updateproduct?id=${item.$id}`}>
                                     <svg
                                       xmlns="http://www.w3.org/2000/svg"
                                       fill="none"
