@@ -42,9 +42,6 @@ export const handleOAuthCallback = async () => {
       const userData = {
         name: currentUser.name || currentUser.email.split("@")[0],
         email: currentUser.email,
-        uid: currentUser.$id,
-        provider: "google",
-        lastLogin: new Date().toISOString(),
       };
 
       // First check if user already exists in the database
@@ -60,36 +57,22 @@ export const handleOAuthCallback = async () => {
 
       let userInDb;
       if (existingUser) {
-        // User exists, just update the lastLogin time
-        try {
-          userInDb = await databases.updateDocument(
-            DATABASE_ID,
-            USER_COLLECTION_ID,
-            existingUser.$id,
-            { lastLogin: new Date().toISOString() }
-          );
-          console.log("Existing user login updated:", userInDb.$id);
-        } catch (updateError) {
-          console.error("Error updating existing user:", updateError);
-          userInDb = { data: existingUser };
-        }
+        // User exists, no need to update since we only have name and email fields
+        userInDb = { data: existingUser };
+        console.log("User already exists in database:", existingUser.$id);
       } else {
         // User doesn't exist, create a new user in database
         try {
+          // Only include fields that exist in your schema
           const newUserData = {
             email: userData.email,
             name: userData.name,
-            uid: userData.uid,
-            registerDate: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            provider: "google",
-            isActive: true,
           };
 
           userInDb = await databases.createDocument(
             DATABASE_ID,
             USER_COLLECTION_ID,
-            userData.uid, // Use Appwrite user ID as document ID
+            ID.unique(),
             newUserData
           );
           console.log("New user created in database:", userInDb.$id);
@@ -415,37 +398,45 @@ export const synchronizeUserState = async () => {
 // Create a user in the database
 export const createUser = async (userData) => {
   try {
-    // First check if user exists in the database
-    const existingUsers = await databases.listDocuments(
-      DATABASE_ID,
-      USER_COLLECTION_ID
-    );
-
-    // Manually filter results by email
-    const existingUser = existingUsers.documents.find(
-      (user) => user.email === userData.email
-    );
-
-    console.log(existingUser)
-    if (existingUser) {
-      // User already exists, return the existing user
-      return {
-        success: true,
-        data: existingUser,
-        message: "User already exists",
-      };
+    if (!userData || !userData.email) {
+      console.error("Cannot create user: Missing email");
+      return { success: false, error: "Missing required user data (email)" };
     }
 
+    console.log(
+      "Attempting to create/verify user in database:",
+      userData.email
+    );
+
     try {
-      // Create new user if not found
-      // Define the document data based on available schema attributes
-      const documentData = {};
+      // First check if user exists in the database
+      const existingUsers = await databases.listDocuments(
+        DATABASE_ID,
+        USER_COLLECTION_ID
+      );
 
-      // Only add fields that exist in your schema
-      // You can customize this based on your actual schema
-      if (userData.name) documentData.name = userData.name;
-      if (userData.email) documentData.email = userData.email;
+      // Manually filter results by email
+      const existingUser = existingUsers.documents.find(
+        (user) => user.email === userData.email
+      );
 
+      if (existingUser) {
+        // User already exists, no need to update since we only have name and email
+        console.log("User already exists in database:", existingUser.$id);
+        return {
+          success: true,
+          data: existingUser,
+          message: "User already exists",
+        };
+      }
+
+      // Create new user with only name and email fields
+      const documentData = {
+        email: userData.email,
+        name: userData.name || userData.email.split("@")[0],
+      };
+
+      // Create the document with a unique ID
       const newUser = await databases.createDocument(
         DATABASE_ID,
         USER_COLLECTION_ID,
@@ -453,35 +444,26 @@ export const createUser = async (userData) => {
         documentData
       );
 
+      console.log("New user created in database:", newUser.$id);
+
       return {
         success: true,
         data: newUser,
+        message: "New user created successfully",
       };
-    } catch (permissionError) {
-      console.error("Permission error:", permissionError);
+    } catch (dbError) {
+      console.error("Database operation error:", dbError);
 
-      // If we get a permission error, create a user object locally
-      // This is a workaround for demo purposes when database permissions aren't set up
-      const tempUser = {
-        $id: ID.unique(),
-        email: userData.email,
-      };
-
-      // Only add name if it was provided
-      if (userData.name) tempUser.name = userData.name;
-
-      console.log(
-        "Created temporary user due to permission issues. Please update Appwrite permissions."
-      );
-
+      // Return a partial success to prevent blocking the auth flow
       return {
-        success: true,
-        data: tempUser,
-        message: "Created temporary user (database write permission denied)",
+        success: false,
+        error: dbError.message,
+        message:
+          "Failed to interact with the database, but authentication succeeded",
       };
     }
   } catch (error) {
-    console.error("Error creating user:", error);
+    console.error("Error in createUser function:", error);
     return {
       success: false,
       error: error.message,

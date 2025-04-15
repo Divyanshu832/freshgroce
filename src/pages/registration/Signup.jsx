@@ -2,7 +2,11 @@ import { useContext, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import myContext from "../../context/data/myContext";
 import { toast } from "react-toastify";
-import { signInWithGoogle, isAuthenticated } from "../../appwrite/authUtils";
+import {
+  signInWithGoogle,
+  isAuthenticated,
+  getCurrentUser,
+} from "../../appwrite/authUtils";
 import Loader from "../../components/loader/loader";
 
 function Signup() {
@@ -37,12 +41,15 @@ function Signup() {
   const handleGoogleSignUp = async () => {
     setLoading(true);
     try {
+      // Just initiate the OAuth session - this will redirect the browser
       await signInWithGoogle();
-      // The OAuth process will redirect to success URL after authentication
-      // Upon return, the useEffect in Login component will handle user creation in database
+
+      // No need to do anything else here since the browser will redirect
+      // After redirect, App.jsx's synchronizeUserState will handle the session
+      // We don't call getCurrentUser() here because the redirection will happen before it can complete
     } catch (error) {
-      console.error(error);
-      toast.error("Signup Failed", {
+      console.error("OAuth error:", error);
+      toast.error("Signup Failed: " + (error.message || "Unknown error"), {
         position: "top-right",
         autoClose: 5000,
         hideProgressBar: true,

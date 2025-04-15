@@ -3,6 +3,7 @@ import {
   Route,
   Routes,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Home from "./pages/home/Home";
@@ -23,21 +24,81 @@ import {
   isUserAdmin,
   isAuthenticated,
   synchronizeUserState,
+  handleOAuthCallback,
+  createUser,
 } from "./appwrite/authUtils";
+import { account } from "./appwrite/appwriteConfig";
 import AllProducts from "./pages/allproducts/AllProducts";
+
+// OAuth callback handler component
+function OAuthHandler() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleAuth = async () => {
+      try {
+        // Try to get the current user, which will throw an error if no session
+        const currentUser = await account.get();
+
+        if (currentUser) {
+          // Successfully got user, create in database
+          const userData = {
+            name: currentUser.name || currentUser.email.split("@")[0],
+            email: currentUser.email,
+          };
+
+          // Explicitly create user in database
+          await createUser(userData);
+          console.log("User created/updated in database after OAuth login");
+        }
+      } catch (error) {
+        console.error("OAuth callback handling error:", error);
+      }
+    };
+
+    // Check if we're coming from an OAuth redirect
+    if (location.pathname === "/" && location.search.includes("userId")) {
+      handleAuth();
+    }
+  }, [location]);
+
+  return null; // This component doesn't render anything
+}
 
 function App() {
   // Synchronize user state when app first loads
   useEffect(() => {
     const syncUserState = async () => {
-      await synchronizeUserState();
+      try {
+        await synchronizeUserState();
+
+        // Explicitly handle OAuth callback to create user in database
+        try {
+          const currentUser = await account.get();
+          if (currentUser) {
+            const userData = {
+              name: currentUser.name || currentUser.email.split("@")[0],
+              email: currentUser.email,
+            };
+            await createUser(userData);
+            console.log("User created/verified in database on app load");
+          }
+        } catch (error) {
+          // No current user or error getting user
+          console.error("Error checking current user on app load:", error);
+        }
+      } catch (syncError) {
+        console.error("Error synchronizing user state:", syncError);
+      }
     };
+
     syncUserState();
   }, []);
 
   return (
     <MyState>
       <Router>
+        <OAuthHandler />
         <Routes>
           <Route
             path="/"
