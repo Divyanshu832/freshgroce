@@ -80,9 +80,15 @@ function ProductCard() {
 
         <div className="flex flex-wrap -m-4">
           {displayProducts
-            .filter((obj) => obj.title.toLowerCase().includes(searchkey))
-            .filter((obj) => obj.category.toLowerCase().includes(filterType))
-            .filter((obj) => obj.price.includes(filterPrice))
+            .filter((obj) =>
+              obj.title.toLowerCase().includes(searchkey.toLowerCase())
+            )
+            .filter((obj) =>
+              obj.category.toLowerCase().includes(filterType.toLowerCase())
+            )
+            .filter((obj) =>
+              obj.price.toLowerCase().includes(filterPrice.toLowerCase())
+            )
             .map((item, index) => {
               const { title, price, imageUrl, description } = item;
               const productId = item.$id;
