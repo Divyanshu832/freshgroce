@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import myContext from "../../context/data/myContext";
 import { useContext, useEffect, useState } from "react";
 import { toast } from "react-toastify";
@@ -8,43 +8,53 @@ import {
   isAuthenticated,
   synchronizeUserState,
   sendEmailOTP,
+  handleOAuthCallback,
 } from "../../appwrite/authUtils";
 import Loader from "../../components/loader/loader";
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const context = useContext(myContext);
   const { loading, setLoading } = context;
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
 
-  // Check if user is already logged in
+  // Check if user is already logged in or just completed OAuth
   useEffect(() => {
     const checkUserStatus = async () => {
       setLoading(true);
       setIsAuthenticating(true);
       try {
+        // First check if we just completed an OAuth flow (Google Sign-in)
+        // This is triggered when the user is redirected back from the OAuth provider
+        if (
+          window.location.search.includes("secret=") ||
+          window.location.hash.includes("id=")
+        ) {
+          try {
+            // Handle the OAuth callback and ensure user data is stored in DB
+            const result = await handleOAuthCallback();
+            if (result.success) {
+              toast.success("Login successful");
+              navigate("/");
+              return;
+            }
+          } catch (oauthError) {
+            console.error("Error handling OAuth callback:", oauthError);
+          }
+        }
+
+        // Otherwise, check if user is already logged in
         const authStatus = await isAuthenticated();
-        console.log(authStatus);
         if (authStatus.success && authStatus.isAuthenticated) {
           // User is authenticated in Appwrite
-          // Force update localStorage with current user data
           try {
-            const userResponse = await getCurrentUser();
-            if (userResponse.success) {
-              // Explicitly store user data again for cross-browser compatibility
-              localStorage.setItem(
-                "user",
-                JSON.stringify({
-                  user: {
-                    uid: userResponse.data.$id,
-                    email: userResponse.data.email,
-                    name: userResponse.data.name,
-                  },
-                })
-              );
+            // Force synchronize the user state including admin status
+            const syncResult = await synchronizeUserState();
 
+            if (syncResult.success) {
               toast.success("Login successful");
               navigate("/");
             }
@@ -72,6 +82,7 @@ function Login() {
 
       await signInWithGoogle();
       // The OAuth flow will handle the redirect and authentication
+      // User data will be stored in DB in the handleOAuthCallback function after redirect
     } catch (error) {
       console.error("Google sign-in error:", error);
       toast.error("Sign in failed", {

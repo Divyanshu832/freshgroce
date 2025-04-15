@@ -442,46 +442,59 @@ function DashboardTab() {
                       </th>
                     </tr>
                   </thead>
-                  {user.map((item, index) => {
-                    const { name, uid, email, date } = item;
-                    return (
-                      <tbody>
-                        <tr
-                          className="bg-gray-50 border-b  dark:border-gray-700"
-                          style={{
-                            backgroundColor:
-                              mode === "dark" ? "rgb(46 49 55)" : "",
-                            color: mode === "dark" ? "white" : "",
-                          }}
+                  <tbody>
+                    {user && user.length > 0 ? (
+                      user.map((item, index) => {
+                        const { name, uid, email, date } = item;
+                        return (
+                          <tr
+                            key={index}
+                            className="bg-gray-50 border-b dark:border-gray-700"
+                            style={{
+                              backgroundColor:
+                                mode === "dark" ? "rgb(46 49 55)" : "",
+                              color: mode === "dark" ? "white" : "",
+                            }}
+                          >
+                            <td
+                              className="px-6 py-4 text-black "
+                              style={{ color: mode === "dark" ? "white" : "" }}
+                            >
+                              {index + 1}.
+                            </td>
+                            <td
+                              className="px-6 py-4 text-black "
+                              style={{ color: mode === "dark" ? "white" : "" }}
+                            >
+                              {name || "N/A"}
+                            </td>
+                            <td
+                              className="px-6 py-4 text-black "
+                              style={{ color: mode === "dark" ? "white" : "" }}
+                            >
+                              {email || "N/A"}
+                            </td>
+                            <td
+                              className="px-6 py-4 text-black "
+                              style={{ color: mode === "dark" ? "white" : "" }}
+                            >
+                              {uid || item.$id || "N/A"}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan="4"
+                          className="px-6 py-4 text-center text-black"
+                          style={{ color: mode === "dark" ? "white" : "" }}
                         >
-                          <td
-                            className="px-6 py-4 text-black "
-                            style={{ color: mode === "dark" ? "white" : "" }}
-                          >
-                            {index + 1}.
-                          </td>
-                          <td
-                            className="px-6 py-4 text-black "
-                            style={{ color: mode === "dark" ? "white" : "" }}
-                          >
-                            {name}
-                          </td>
-                          <td
-                            className="px-6 py-4 text-black "
-                            style={{ color: mode === "dark" ? "white" : "" }}
-                          >
-                            {email}
-                          </td>
-                          <td
-                            className="px-6 py-4 text-black "
-                            style={{ color: mode === "dark" ? "white" : "" }}
-                          >
-                            {uid}
-                          </td>
-                        </tr>
-                      </tbody>
-                    );
-                  })}
+                          No users found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
                 </table>
               </div>
             </TabPanel>

@@ -31,6 +31,118 @@ export const signInWithGoogle = async () => {
   }
 };
 
+// Handle the post-OAuth user data storage
+export const handleOAuthCallback = async () => {
+  try {
+    // Check if we have a valid session after OAuth redirect
+    const currentUser = await account.get();
+
+    if (currentUser) {
+      // Prepare user data for database
+      const userData = {
+        name: currentUser.name || currentUser.email.split("@")[0],
+        email: currentUser.email,
+        uid: currentUser.$id,
+        provider: "google",
+        lastLogin: new Date().toISOString(),
+      };
+
+      // First check if user already exists in the database
+      const existingUsers = await databases.listDocuments(
+        DATABASE_ID,
+        USER_COLLECTION_ID
+      );
+
+      // Check if user already exists by email
+      const existingUser = existingUsers.documents.find(
+        (user) => user.email === currentUser.email
+      );
+
+      let userInDb;
+      if (existingUser) {
+        // User exists, just update the lastLogin time
+        try {
+          userInDb = await databases.updateDocument(
+            DATABASE_ID,
+            USER_COLLECTION_ID,
+            existingUser.$id,
+            { lastLogin: new Date().toISOString() }
+          );
+          console.log("Existing user login updated:", userInDb.$id);
+        } catch (updateError) {
+          console.error("Error updating existing user:", updateError);
+          userInDb = { data: existingUser };
+        }
+      } else {
+        // User doesn't exist, create a new user in database
+        try {
+          const newUserData = {
+            email: userData.email,
+            name: userData.name,
+            uid: userData.uid,
+            registerDate: new Date().toISOString(),
+            lastLogin: new Date().toISOString(),
+            provider: "google",
+            isActive: true,
+          };
+
+          userInDb = await databases.createDocument(
+            DATABASE_ID,
+            USER_COLLECTION_ID,
+            userData.uid, // Use Appwrite user ID as document ID
+            newUserData
+          );
+          console.log("New user created in database:", userInDb.$id);
+        } catch (createError) {
+          console.error("Error creating new user:", createError);
+          // Continue without storing in DB, but log the error
+        }
+      }
+
+      // Ensure admin status is checked
+      const adminStatus = await isUserAdmin();
+
+      // Store user data in localStorage with admin status
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          user: {
+            uid: currentUser.$id,
+            email: currentUser.email,
+            name: currentUser.name || userData.name,
+            isAdmin: adminStatus.success && adminStatus.isAdmin,
+          },
+        })
+      );
+
+      // Notify components about auth state change
+      notifyAuthStateChanged({
+        uid: currentUser.$id,
+        email: currentUser.email,
+        name: currentUser.name || userData.name,
+        isAdmin: adminStatus.success && adminStatus.isAdmin,
+      });
+
+      return {
+        success: true,
+        data: currentUser,
+        userInDb: userInDb || { data: null },
+      };
+    }
+
+    return {
+      success: false,
+      message: "No user found after OAuth callback",
+    };
+  } catch (error) {
+    console.error("Error in OAuth callback:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
 // Email OTP Authentication Functions
 
 // Send Magic URL or OTP to email for passwordless authentication
@@ -223,6 +335,27 @@ export const isAuthenticated = async () => {
   }
 };
 
+// Function to notify all components of auth state changes
+export const notifyAuthStateChanged = (user = null) => {
+  // Create and dispatch a custom event that components can listen for
+  const authEvent = new CustomEvent("auth-state-changed", {
+    detail: { user, timestamp: Date.now() },
+  });
+  window.dispatchEvent(authEvent);
+
+  // Also trigger storage event for cross-tab communication
+  try {
+    // This is a hack to trigger storage events in the same tab
+    const tempValue = localStorage.getItem("auth-timestamp") || "0";
+    localStorage.setItem("auth-timestamp", Date.now().toString());
+    setTimeout(() => {
+      localStorage.setItem("auth-timestamp", tempValue);
+    }, 100);
+  } catch (e) {
+    console.error("Error triggering storage event:", e);
+  }
+};
+
 // Synchronize user state with current session
 export const synchronizeUserState = async () => {
   try {
@@ -239,25 +372,30 @@ export const synchronizeUserState = async () => {
       }
 
       // Update localStorage with current user data and admin status
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          user: {
-            uid: currentUser.$id,
-            email: currentUser.email,
-            name: currentUser.name,
-            isAdmin: isAdmin, // Include admin status
-          },
-        })
-      );
+      const userData = {
+        user: {
+          uid: currentUser.$id,
+          email: currentUser.email,
+          name: currentUser.name,
+          isAdmin: isAdmin, // Include admin status
+        },
+      };
+
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      // Notify all components about the state change
+      notifyAuthStateChanged(userData.user);
+
       return {
         success: true,
         synchronized: true,
         isAdmin,
+        user: userData.user,
       };
     } else {
       // Remove user data if no session exists
       localStorage.removeItem("user");
+      notifyAuthStateChanged(null);
       return {
         success: true,
         synchronized: false,
@@ -266,6 +404,7 @@ export const synchronizeUserState = async () => {
   } catch (error) {
     // Session doesn't exist or is invalid
     localStorage.removeItem("user");
+    notifyAuthStateChanged(null);
     return {
       success: false,
       error: error.message,
@@ -287,6 +426,7 @@ export const createUser = async (userData) => {
       (user) => user.email === userData.email
     );
 
+    console.log(existingUser)
     if (existingUser) {
       // User already exists, return the existing user
       return {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { verifyEmailOTP } from "../../appwrite/authUtils";
+import { verifyEmailOTP, synchronizeUserState } from "../../appwrite/authUtils";
 import Loader from "../../components/loader/loader";
 
 function VerifyOTP() {
@@ -35,6 +35,17 @@ function VerifyOTP() {
         const result = await verifyEmailOTP(userId, secret);
 
         if (result.success) {
+          // Force synchronize user state including admin status
+          try {
+            const syncResult = await synchronizeUserState();
+            console.log(
+              "Auth state synchronized after OTP verification:",
+              syncResult
+            );
+          } catch (syncError) {
+            console.error("Error synchronizing auth state:", syncError);
+          }
+
           setVerificationStatus({
             inProgress: false,
             success: true,

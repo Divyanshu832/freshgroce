@@ -55,14 +55,27 @@ function ProductCard() {
   return (
     <section className="text-gray-600 mt-10 body-font bg-gradient-to-b from-green-100 to-green-50 dark:from-green-900/30 dark:to-transparent">
       <div className="container px-5 py-8 md:py-16 mx-auto">
-        <div className="w-full mb-6 lg:mb-10 flex flex-col items-center text-center">
-          <h1
-            className="sm:text-3xl text-2xl font-medium title-font mb-2 text-gray-900"
-            style={{ color: mode === "dark" ? "white" : "" }}
-          >
-            Our Top Products
-          </h1>
-          <div className="h-1 w-48 bg-green-600 rounded"></div>
+        <div className="flex with-full flex-col md:flex-row justify-between items-center mb-6 lg:mb-10">
+          <div className="flex w-full flex-col items-center text-center mb-4 md:mb-0 md:items-start md:text-left">
+            <h1
+              className="sm:text-3xl text-2xl font-bold title-font text-gray-900"
+              style={{ color: mode === "dark" ? "white" : "" }}
+            >
+              Our Products
+            </h1>
+            <div className="h-1 w-48 bg-green-600 rounded mt-2"></div>
+          </div>
+
+          <Link to="/allproducts">
+            <button
+              className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center w-24"
+              style={{
+                backgroundColor: mode === "dark" ? "rgb(21, 128, 61)" : "",
+              }}
+            >
+              View All
+            </button>
+          </Link>
         </div>
 
         <div className="flex flex-wrap -m-4">
@@ -177,6 +190,8 @@ function ProductCard() {
               );
             })}
         </div>
+
+        {/* Mobile view "View All" button that shows at bottom */}
       </div>
     </section>
   );

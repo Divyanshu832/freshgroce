@@ -6,118 +6,125 @@ import { FiSun } from "react-icons/fi";
 import myContext from "../../context/data/myContext";
 import { RxCross2 } from "react-icons/rx";
 import { useSelector } from "react-redux";
-import { logoutUser, isAuthenticated } from "../../appwrite/authUtils";
+import {
+  logoutUser,
+  isAuthenticated,
+  isUserAdmin,
+  synchronizeUserState,
+} from "../../appwrite/authUtils";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const location = useLocation(); // Get current location/route
+  const location = useLocation();
 
   const context = useContext(myContext);
   const { toggleMode, mode } = context;
 
-  // Enhanced authentication check - now runs on location change and initial load
-  useEffect(() => {
-    async function checkLoginStatus() {
-      setCheckingAuth(true);
+  // Function to check authentication and admin status
+  const checkAuthStatus = async () => {
+    setLoading(true);
+    try {
+      // First quickly check localStorage for immediate UI update
       try {
-        // First check localStorage for quick UI update
         const userStr = localStorage.getItem("user");
-        let localUser = null;
-
         if (userStr) {
-          try {
-            localUser = JSON.parse(userStr);
-            // Set initial state from localStorage
-            if (localUser && localUser.user) {
-              setIsLoggedIn(true);
-              setUserInfo(localUser.user);
-              setIsAdmin(localUser.user.isAdmin || false);
-            }
-          } catch (parseError) {
-            console.error("Error parsing user data:", parseError);
-          }
-        }
-
-        // Then verify with Appwrite for source of truth
-        const authStatus = await isAuthenticated();
-        if (authStatus.success && authStatus.isAuthenticated) {
-          // User is authenticated according to Appwrite
-          if (!isLoggedIn) {
+          const userData = JSON.parse(userStr);
+          if (userData && userData.user) {
             setIsLoggedIn(true);
+            setUserInfo(userData.user);
+            setIsAdmin(userData.user.isAdmin || false);
+          }
+        }
+      } catch (parseError) {
+        console.error("Error parsing localStorage data:", parseError);
+      }
 
-            // Update user info from Appwrite if available
-            if (authStatus.user) {
-              setUserInfo({
-                uid: authStatus.user.$id,
-                email: authStatus.user.email,
-                name: authStatus.user.name,
-                isAdmin: localUser?.user?.isAdmin || false,
-              });
-              setIsAdmin(localUser?.user?.isAdmin || false);
+      // Then verify with Appwrite for accurate state
+      const authStatus = await isAuthenticated();
+      if (authStatus.success && authStatus.isAuthenticated) {
+        // User is authenticated, sync state including admin status
+        const syncResult = await synchronizeUserState();
+        if (syncResult.success) {
+          setIsLoggedIn(true);
+          const adminStatus = await isUserAdmin();
+          setIsAdmin(adminStatus.success && adminStatus.isAdmin);
+
+          // Get user info from localStorage again after sync
+          const updatedUserStr = localStorage.getItem("user");
+          if (updatedUserStr) {
+            try {
+              const updatedUserData = JSON.parse(updatedUserStr);
+              if (updatedUserData && updatedUserData.user) {
+                setUserInfo(updatedUserData.user);
+              }
+            } catch (parseError) {
+              console.error("Error parsing updated user data:", parseError);
             }
           }
-        } else {
-          // Not authenticated according to Appwrite
-          setIsLoggedIn(false);
-          setIsAdmin(false);
-          setUserInfo(null);
         }
-      } catch (error) {
-        console.error("Error checking authentication status:", error);
+      } else {
         setIsLoggedIn(false);
         setIsAdmin(false);
         setUserInfo(null);
-      } finally {
-        setCheckingAuth(false);
       }
+    } catch (error) {
+      console.error("Error checking authentication status:", error);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Run auth check when component mounts or location changes
-    checkLoginStatus();
+  // Check auth status on initial load and route changes
+  useEffect(() => {
+    checkAuthStatus();
+  }, [location.pathname]);
 
-    // Set up custom event listener for login state changes
-    const handleLoginChange = () => checkLoginStatus();
-    window.addEventListener("login-state-changed", handleLoginChange);
+  // Listen for authentication events
+  useEffect(() => {
+    const handleAuthChanged = () => {
+      console.log("Auth state changed event detected, updating navbar...");
+      checkAuthStatus();
+    };
 
-    // Set up storage event listener for cross-tab synchronization
-    const handleStorageChange = (e) => {
-      if (e.key === "user" || e.key === null) {
-        checkLoginStatus();
+    // Listen for custom auth event
+    window.addEventListener("auth-state-changed", handleAuthChanged);
+
+    // Listen for storage changes (for cross-tab synchronization)
+    window.addEventListener("storage", (event) => {
+      if (event.key === "user" || event.key === "auth-timestamp") {
+        handleAuthChanged();
       }
-    };
-    window.addEventListener("storage", handleStorageChange);
+    });
 
-    // Clean up event listeners
     return () => {
-      window.removeEventListener("login-state-changed", handleLoginChange);
-      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("auth-state-changed", handleAuthChanged);
+      // We don't remove the storage event listener as it's unlikely to cause issues
     };
-  }, [location.pathname]); // Re-run when route changes
+  }, []);
 
-  // Enhanced logout function with better error handling and navigation
+  // Logout function
   const logout = async () => {
     try {
-      // Clear localStorage first for immediate UI update
-      localStorage.clear();
-
-      // Update state
+      // Update UI immediately for better UX
       setIsLoggedIn(false);
       setIsAdmin(false);
       setUserInfo(null);
 
-      // Then try to clear the Appwrite session (in background)
+      // Clear localStorage
+      localStorage.clear();
+
+      // Perform server-side logout
       await logoutUser();
 
       // Navigate to login page
       navigate("/login");
     } catch (error) {
       console.error("Error during logout:", error);
-      // Still make sure to navigate away
       navigate("/login");
     }
   };

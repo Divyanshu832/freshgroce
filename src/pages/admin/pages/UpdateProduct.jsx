@@ -7,10 +7,16 @@ import {
   DATABASE_ID,
   PRODUCT_COLLECTION_ID,
 } from "../../../appwrite/appwriteConfig";
+import Loader from "../../../components/loader/loader";
 
 function UpdateProduct() {
   const context = useContext(myContext);
-  const { products, setProducts, updateProduct } = context;
+  const {
+    products,
+    setProducts,
+    updateProduct,
+    loading: contextLoading,
+  } = context;
   const [loading, setLoading] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
@@ -64,9 +70,14 @@ function UpdateProduct() {
   }
 
   return (
-    <div>
-      <div className=" flex justify-center items-center h-screen">
-        <div className=" bg-gray-800 px-10 py-10 rounded-xl ">
+    <div className="relative">
+      {contextLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center">
+          <Loader />
+        </div>
+      )}
+      <div className="flex justify-center items-center h-screen">
+        <div className="bg-gray-800 px-10 py-10 rounded-xl">
           <div className="">
             <h1 className="text-center text-white text-xl mb-4 font-bold">
               Update Product
@@ -134,12 +145,13 @@ function UpdateProduct() {
             ></textarea>
           </div>
 
-          <div className=" flex justify-center mb-3">
+          <div className="flex justify-center mb-3">
             <button
               onClick={updateProduct}
-              className=" bg-yellow-500 w-full text-black font-bold  px-2 py-2 rounded-lg"
+              className="bg-yellow-500 w-full text-black font-bold px-2 py-2 rounded-lg hover:bg-yellow-600 transition-colors duration-300"
+              disabled={contextLoading}
             >
-              Update Product
+              {contextLoading ? "Updating..." : "Update Product"}
             </button>
           </div>
         </div>
