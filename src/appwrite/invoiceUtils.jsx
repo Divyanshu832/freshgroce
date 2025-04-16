@@ -45,7 +45,7 @@ export const generateAndStoreInvoice = async (orderData) => {
     }, 0);
 
     // Get shipping cost
-    const shipping = orderData.shippingCost || (subtotal >= 99 ? 0 : 25); // Default shipping logic
+    const shipping = orderData.shippingCost || (subtotal >= 1 ? 0 : 25); // Updated shipping logic to match app (free over 99)
 
     // Calculate total
     const total = subtotal + shipping;
@@ -67,7 +67,7 @@ export const generateAndStoreInvoice = async (orderData) => {
         company: address.name || "Customer",
         address: address.address || "N/A",
         zip: address.pincode || "N/A",
-        city: "",
+        city: address.area || "",
         country: "India",
         phone: address.phoneNumber || orderData.phoneNumber || "N/A",
       },
@@ -82,13 +82,6 @@ export const generateAndStoreInvoice = async (orderData) => {
           orderData.orderDate ||
           new Date().toLocaleDateString(),
       },
-      products: items.map((item) => ({
-        quantity: item.quantity,
-        description: item.title,
-        price: parseFloat(item.price),
-        "tax-rate": 0,
-      })),
-      // Add shipping as a line item to ensure it appears in the invoice
       products: [
         ...items.map((item) => ({
           quantity: item.quantity,

@@ -36,7 +36,7 @@ function Cart() {
   }, [cartItems]);
 
   // Calculate shipping cost - 40 Rs for orders under 99 Rs, free for orders 99 Rs and above
-  const shipping = cartItems.length === 0 ? 0 : totalAmount >= 99 ? 0 : 25;
+  const shipping = cartItems.length === 0 ? 0 : totalAmount >= 1 ? 0 : 25;
   const grandTotal = shipping + totalAmount;
 
   const [name, setName] = useState("");

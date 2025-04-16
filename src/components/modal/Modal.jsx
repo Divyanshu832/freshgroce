@@ -1,5 +1,5 @@
 import { Dialog, Transition } from "@headlessui/react";
-import { Fragment, useState } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { PaymentMethod } from "../../appwrite/databaseUtils";
 import { FaSpinner } from "react-icons/fa";
 
@@ -20,6 +20,51 @@ export default function Modal({
   isProcessing,
 }) {
   let [isOpen, setIsOpen] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
+
+  // Ensure phoneNumber always starts with +91
+  useEffect(() => {
+    if (!phoneNumber.startsWith("+91")) {
+      setPhoneNumber("+91" + phoneNumber.replace("+91", ""));
+    }
+  }, [phoneNumber, setPhoneNumber]);
+
+  // Handle phone number input with validation
+  const handlePhoneChange = (e) => {
+    const input = e.target.value;
+
+    // Allow only the prefix +91 followed by digits
+    if (input.startsWith("+91")) {
+      // Extract the part after +91
+      const numberPart = input.substring(3);
+
+      // Allow only digits after +91 and limit to 10 digits
+      if (/^\d*$/.test(numberPart) && numberPart.length <= 10) {
+        setPhoneNumber(input);
+        if (numberPart.length === 10) {
+          setPhoneError("");
+        } else if (numberPart.length > 0) {
+          setPhoneError("Phone number must be exactly 10 digits after +91");
+        } else {
+          setPhoneError("");
+        }
+      }
+    } else {
+      // If someone tries to remove the prefix, restore it
+      setPhoneNumber("+91" + input.replace(/\D/g, "").substring(0, 10));
+    }
+  };
+
+  // Validate phone number before placing order
+  const validateAndBuyNow = () => {
+    const numberPart = phoneNumber.substring(3);
+    if (numberPart.length !== 10) {
+      setPhoneError("Bhai number to sahi de de!!");
+      return;
+    }
+    setPhoneError("");
+    buyNow();
+  };
 
   function closeModal() {
     // Only allow closing if not currently processing an order
@@ -130,7 +175,7 @@ export default function Modal({
                               >
                                 <option value="">Select your area</option>
                                 <option value="Ananda Nagar">
-                                  Ananda Nagar
+                                  Anand Nagar
                                 </option>
                                 <option value="Patel Nagar">Patel Nagar</option>
                                 <option value="RatnaGiri">RatnaGiri</option>
@@ -171,14 +216,22 @@ export default function Modal({
                               </label>
                               <input
                                 value={phoneNumber}
-                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                onChange={handlePhoneChange}
                                 type="text"
                                 name="mobileNumber"
                                 id="mobileNumber"
-                                className=" border outline-0 border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 bg-gray-100"
+                                className={`border outline-0 border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 bg-gray-100 ${
+                                  phoneError ? "border-red-500" : ""
+                                }`}
                                 required
                                 disabled={isProcessing}
+                                placeholder="+91XXXXXXXXXX"
                               />
+                              {phoneError && (
+                                <p className="mt-1 text-xs text-red-500">
+                                  {phoneError}
+                                </p>
+                              )}
                             </div>
                             <div>
                               <label
@@ -209,7 +262,7 @@ export default function Modal({
                           <button
                             onClick={() => {
                               if (!isProcessing) {
-                                buyNow();
+                                validateAndBuyNow();
                               }
                             }}
                             type="button"
