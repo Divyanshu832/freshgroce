@@ -191,6 +191,27 @@ const OrdersTab = () => {
     return "N/A";
   };
 
+  // Get time slot from order
+  const getTimeSlot = (order) => {
+    // First check if timeSlot is directly on the order object
+    if (order.timeSlot) {
+      return order.timeSlot;
+    }
+
+    // Try to parse address string if it exists to get time slot
+    if (order.address && typeof order.address === "string") {
+      try {
+        const addressData = JSON.parse(order.address);
+        return addressData.timeSlot || "N/A";
+      } catch (e) {
+        console.error("Error parsing address data for time slot:", e);
+        return "N/A";
+      }
+    }
+
+    return "N/A";
+  };
+
   // Format the date string
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -230,6 +251,7 @@ const OrdersTab = () => {
                 <th className="py-2 px-3 text-left">Date</th>
                 <th className="py-2 px-3 text-left">Amount</th>
                 <th className="py-2 px-3 text-left">Payment</th>
+                <th className="py-2 px-3 text-left">Time Slot</th>
                 <th className="py-2 px-3 text-left">Status</th>
                 <th className="py-2 px-3 text-left">Area</th>
                 <th className="py-2 px-3 text-left">Invoice</th>
@@ -260,6 +282,7 @@ const OrdersTab = () => {
                   </td>
                   <td className="py-2 px-3">${getTotalAmount(order)}</td>
                   <td className="py-2 px-3">{order.paymentMethod || "N/A"}</td>
+                  <td className="py-2 px-3">{getTimeSlot(order)}</td>
                   <td className="py-2 px-3">
                     <span
                       className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(

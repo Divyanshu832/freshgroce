@@ -18,6 +18,8 @@ export default function Modal({
   setArea,
   buyNow,
   isProcessing,
+  timeSlot,
+  setTimeSlot,
 }) {
   let [isOpen, setIsOpen] = useState(false);
   const [phoneError, setPhoneError] = useState("");
@@ -174,9 +176,7 @@ export default function Modal({
                                 disabled={isProcessing}
                               >
                                 <option value="">Select your area</option>
-                                <option value="Ananda Nagar">
-                                  Anand Nagar
-                                </option>
+                                <option value="Anand Nagar">Anand Nagar</option>
                                 <option value="Patel Nagar">Patel Nagar</option>
                                 <option value="RatnaGiri">RatnaGiri</option>
                                 <option value="Piplani">Piplani</option>
@@ -256,6 +256,31 @@ export default function Modal({
                                   Cash On Delivery (COD)
                                 </option>
                                 <option value={PaymentMethod.UPI}>UPI</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label
+                                htmlFor="timeSlot"
+                                className="block mb-2 text-sm font-medium text-gray-900"
+                              >
+                                Delivery Time Slot
+                              </label>
+                              <select
+                                value={timeSlot}
+                                onChange={(e) => setTimeSlot(e.target.value)}
+                                name="timeSlot"
+                                id="timeSlot"
+                                className="border outline-0 border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 bg-gray-100"
+                                required
+                                disabled={isProcessing}
+                              >
+                                <option value="">
+                                  Select delivery time slot
+                                </option>
+                                <option value="6AM - 7AM">6AM - 7AM</option>
+                                <option value="7AM - 8AM">7AM - 8AM</option>
+                                <option value="8AM - 9AM">8AM - 9AM</option>
                               </select>
                             </div>
                           </form>

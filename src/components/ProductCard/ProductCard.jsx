@@ -18,9 +18,9 @@ function ProductCard() {
     const isHomePage = window.location.pathname === "/";
 
     if (isHomePage) {
-      // Show only featured products on homepage (maximum 4)
+      // Show only featured products on homepage (maximum 16)
       const featured = product.filter((item) => item.isFeatured === true);
-      setDisplayProducts(featured.slice(0, 4));
+      setDisplayProducts(featured.slice(0, 16));
     } else {
       // Show all products on other pages
       setDisplayProducts(product);

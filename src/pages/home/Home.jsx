@@ -23,7 +23,7 @@ function Home() {
       <FlashSale />
       <ProductCard />
       <Track />
-      <Testimonial />
+      {/* <Testimonial /> */}
     </Layout>
   );
 }

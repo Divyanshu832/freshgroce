@@ -302,7 +302,12 @@ function Order() {
               ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-gray-50 rounded-lg shadow-sm">
+          <div
+            className="text-center py-12 bg-gray-50 rounded-lg shadow-sm"
+            style={{
+              backgroundColor: mode === "dark" ? "#282c34" : "",
+            }}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="mx-auto h-16 w-16 text-gray-400"
@@ -321,14 +326,22 @@ function Order() {
               className="mt-4 text-lg font-medium text-gray-900"
               style={{ color: mode === "dark" ? "white" : "" }}
             >
-              No orders found
+              You have no orders. Place one now
             </h2>
             <p
               className="mt-2 text-sm text-gray-500"
               style={{ color: mode === "dark" ? "#D1D5DB" : "" }}
             >
-              You haven't placed any orders yet.
+              Browse our products and place your first order today!
             </p>
+            <div className="mt-6">
+              <a
+                href="/allproducts"
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Place Your Order
+              </a>
+            </div>
           </div>
         )}
       </div>

@@ -52,9 +52,9 @@ function DashboardTab() {
     const currentlyFeatured = product.isFeatured || false;
 
     // If trying to feature and already have 4 featured products
-    if (!currentlyFeatured && featuredCount >= 4) {
+    if (!currentlyFeatured && featuredCount >= 16) {
       toast.warning(
-        "Only 4 products can be featured. Please unfeature another product first."
+        "Only 16 products can be featured. Please unfeature another product first."
       );
       return;
     }

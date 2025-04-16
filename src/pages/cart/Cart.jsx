@@ -44,7 +44,8 @@ function Cart() {
   const [pincode, setPincode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
-  const [area, setArea] = useState(""); // Add area state
+  const [area, setArea] = useState("");
+  const [timeSlot, setTimeSlot] = useState(""); // Add time slot state
 
   // Add item quantity
   const increaseQuantity = (item) => {
@@ -110,6 +111,7 @@ function Cart() {
       pincode,
       phoneNumber,
       area,
+      timeSlot,
       date: new Date().toLocaleString("en-US", {
         month: "short",
         day: "2-digit",
@@ -131,6 +133,7 @@ function Cart() {
       status: OrderStatus.PENDING, // Initial status is "Pending"
       totalAmount: grandTotal,
       paymentMethod: paymentMethod, // Add payment method to order info
+      timeSlot: timeSlot, // Add time slot directly to the order
     };
 
     try {
@@ -336,6 +339,8 @@ function Cart() {
                   setPaymentMethod={setPaymentMethod}
                   area={area}
                   setArea={setArea}
+                  timeSlot={timeSlot}
+                  setTimeSlot={setTimeSlot}
                   buyNow={placeOrder}
                   isProcessing={isProcessing}
                 />
