@@ -19,6 +19,7 @@ import VerifyOTP from "./pages/registration/VerifyOTP";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AddProduct from "./pages/admin/pages/AddProduct";
+import { Analytics } from "@vercel/analytics/react"
 import UpdateProduct from "./pages/admin/pages/UpdateProduct";
 import {
   isUserAdmin,

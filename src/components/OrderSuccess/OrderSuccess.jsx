@@ -47,6 +47,9 @@ function OrderSuccess({ isOpen, closeModal }) {
                       We will reach back to you shortly with confirmation
                       details.
                     </p>
+                    <p className="text-sm text-center text-gray-800 font-semibold mt-2">
+                      Your order will be delivered tomorrow from 6AM - 9AM.
+                    </p>
                   </div>
 
                   <div className="mt-6">

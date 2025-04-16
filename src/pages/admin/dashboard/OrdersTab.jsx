@@ -171,6 +171,26 @@ const OrdersTab = () => {
     return "N/A";
   };
 
+  // Parse address data to get complete address
+  const getCustomerFullAddress = (order) => {
+    if (order.addressInfo?.address) {
+      return order.addressInfo.address;
+    }
+
+    // Try to parse address string if it exists
+    if (order.address && typeof order.address === "string") {
+      try {
+        const addressData = JSON.parse(order.address);
+        return addressData.address || "N/A";
+      } catch (e) {
+        console.error("Error parsing address data:", e);
+        return "N/A";
+      }
+    }
+
+    return "N/A";
+  };
+
   // Format the date string
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -206,6 +226,7 @@ const OrdersTab = () => {
                 <th className="py-2 px-3 text-left">Order ID</th>
                 <th className="py-2 px-3 text-left">User ID</th>
                 <th className="py-2 px-3 text-left">Customer</th>
+                <th className="py-2 px-3 text-left">Address</th>
                 <th className="py-2 px-3 text-left">Date</th>
                 <th className="py-2 px-3 text-left">Amount</th>
                 <th className="py-2 px-3 text-left">Payment</th>
@@ -233,6 +254,7 @@ const OrdersTab = () => {
                       {order.phoneNumber || "No phone"}
                     </div>
                   </td>
+                  <td className="py-2 px-3">{getCustomerFullAddress(order)}</td>
                   <td className="py-2 px-3">
                     {order.date || formatDate(order.$createdAt)}
                   </td>

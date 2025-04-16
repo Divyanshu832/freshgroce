@@ -322,22 +322,29 @@ function Cart() {
               </div>
             </div>
             {cartItems.length > 0 && (
-              <Modal
-                name={name}
-                address={address}
-                pincode={pincode}
-                phoneNumber={phoneNumber}
-                setName={setName}
-                setAddress={setAddress}
-                setPincode={setPincode}
-                setPhoneNumber={setPhoneNumber}
-                paymentMethod={paymentMethod}
-                setPaymentMethod={setPaymentMethod}
-                area={area}
-                setArea={setArea}
-                buyNow={placeOrder}
-                isProcessing={isProcessing}
-              />
+              <>
+                <Modal
+                  name={name}
+                  address={address}
+                  pincode={pincode}
+                  phoneNumber={phoneNumber}
+                  setName={setName}
+                  setAddress={setAddress}
+                  setPincode={setPincode}
+                  setPhoneNumber={setPhoneNumber}
+                  paymentMethod={paymentMethod}
+                  setPaymentMethod={setPaymentMethod}
+                  area={area}
+                  setArea={setArea}
+                  buyNow={placeOrder}
+                  isProcessing={isProcessing}
+                />
+                <div className="mt-3 text-center">
+                  <p className="text-sm text-green-600 font-medium">
+                    We will deliver your order tomorrow from 6AM - 9AM
+                  </p>
+                </div>
+              </>
             )}
           </div>
         </div>
