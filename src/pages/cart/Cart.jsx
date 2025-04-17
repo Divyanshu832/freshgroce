@@ -1,4 +1,11 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, {
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+  memo,
+  useCallback,
+} from "react";
 import myContext from "../../context/data/myContext";
 import Layout from "../../components/layout/layout";
 import Modal from "../../components/modal/Modal";
@@ -15,6 +22,79 @@ import { addOrderToDb, OrderStatus } from "../../appwrite/databaseUtils";
 import { generateAndStoreInvoice } from "../../appwrite/invoiceUtils";
 import { FaPlus, FaMinus, FaTrash } from "react-icons/fa";
 
+// Memoized cart item component for better performance
+const CartItem = memo(
+  ({ item, mode, decreaseQuantity, increaseQuantity, removeFromCart }) => {
+    const { title, price, imageUrl, description, quantity } = item;
+
+    return (
+      <div
+        className="justify-between mb-6 rounded-lg border drop-shadow-xl bg-white p-6 sm:flex sm:justify-start"
+        style={{
+          backgroundColor: mode === "dark" ? "rgb(32 33 34)" : "",
+          color: mode === "dark" ? "white" : "",
+        }}
+      >
+        <img
+          src={imageUrl}
+          alt={title}
+          className="w-full rounded-lg sm:w-40"
+          loading="lazy"
+          width="160"
+          height="160"
+        />
+        <div className="sm:ml-4 sm:flex sm:w-full sm:justify-between">
+          <div className="mt-5 sm:mt-0">
+            <h2
+              className="text-lg font-bold text-gray-900"
+              style={{ color: mode === "dark" ? "white" : "" }}
+            >
+              {title}
+            </h2>
+            <h2
+              className="text-sm text-gray-900"
+              style={{ color: mode === "dark" ? "white" : "" }}
+            >
+              {description}
+            </h2>
+            <p
+              className="mt-1 text-xs font-semibold text-gray-700"
+              style={{ color: mode === "dark" ? "white" : "" }}
+            >
+              ₹{price} × {quantity} = ₹{parseInt(price) * quantity}
+            </p>
+          </div>
+          <div className="mt-4 flex flex-col justify-between sm:mt-0 sm:space-y-6 sm:block">
+            <div className="flex items-center justify-end space-x-4 mb-2">
+              <button
+                onClick={() => decreaseQuantity(item)}
+                className="bg-green-100 text-green-800 p-1 rounded hover:bg-green-200"
+              >
+                <FaMinus size={12} />
+              </button>
+              <span className="text-center font-semibold">{quantity}</span>
+              <button
+                onClick={() => increaseQuantity(item)}
+                className="bg-green-100 text-green-800 p-1 rounded hover:bg-green-200"
+              >
+                <FaPlus size={12} />
+              </button>
+            </div>
+            <button
+              onClick={() => removeFromCart(item)}
+              className="text-red-500 hover:text-red-700 flex items-center justify-end"
+            >
+              <FaTrash className="mr-1" /> Remove
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+);
+
+CartItem.displayName = "CartItem";
+
 function Cart() {
   const context = useContext(myContext);
   const { mode } = context;
@@ -25,43 +105,66 @@ function Cart() {
   const [totalAmount, setTotalAmount] = useState(0);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [modalRef, setModalRef] = useState(null);
 
-  useEffect(() => {
-    let temp = 0;
-    cartItems.forEach((cartItem) => {
-      temp = temp + parseInt(cartItem.price) * cartItem.quantity;
-    });
-    setTotalAmount(temp);
-  }, [cartItems]);
-
-  // Calculate shipping cost - 40 Rs for orders under 99 Rs, free for orders 99 Rs and above
-  const shipping = cartItems.length === 0 ? 0 : totalAmount >= 1 ? 0 : 25;
-  const grandTotal = shipping + totalAmount;
-
+  // Form state
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [pincode, setPincode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [area, setArea] = useState("");
-  const [timeSlot, setTimeSlot] = useState(""); // Add time slot state
+  const [timeSlot, setTimeSlot] = useState("");
 
-  // Add item quantity
-  const increaseQuantity = (item) => {
-    dispatch(addToCart(item));
-  };
+  // Memoize calculations that don't need to be recalculated on every render
+  const { shipping, grandTotal } = useMemo(() => {
+    let calculatedTotal = 0;
+    if (cartItems.length > 0) {
+      calculatedTotal = cartItems.reduce(
+        (sum, item) => sum + parseInt(item.price) * item.quantity,
+        0
+      );
+    }
+    const calculatedShipping =
+      cartItems.length === 0 ? 0 : calculatedTotal >= 99 ? 0 : 25;
+    return {
+      shipping: calculatedShipping,
+      grandTotal: calculatedShipping + calculatedTotal,
+    };
+  }, [cartItems]);
 
-  // Decrease item quantity
-  const decreaseQuantity = (item) => {
-    dispatch(decreaseCart(item));
-  };
+  useEffect(() => {
+    const total = cartItems.reduce(
+      (sum, item) => sum + parseInt(item.price) * item.quantity,
+      0
+    );
+    setTotalAmount(total);
 
-  // Remove item from cart
-  const removeFromCart = (item) => {
-    dispatch(deleteFromCart(item));
-    toast.error("Item removed from cart");
-  };
+    // Persist cart to localStorage
+    localStorage.setItem("cart", JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  // Memoize handlers to prevent unnecessary re-renders
+  const increaseQuantity = useCallback(
+    (item) => {
+      dispatch(addToCart(item));
+    },
+    [dispatch]
+  );
+
+  const decreaseQuantity = useCallback(
+    (item) => {
+      dispatch(decreaseCart(item));
+    },
+    [dispatch]
+  );
+
+  const removeFromCart = useCallback(
+    (item) => {
+      dispatch(deleteFromCart(item));
+      toast.error("Item removed from cart");
+    },
+    [dispatch]
+  );
 
   const placeOrder = async () => {
     // validation
@@ -88,16 +191,9 @@ function Cart() {
     // Check if user is logged in by verifying localStorage
     const userInfo = JSON.parse(localStorage.getItem("user"));
     if (!userInfo || !userInfo.user || !userInfo.user.uid) {
-      // Handle case where user is not logged in or userId is missing
       toast.error("Please log in to place an order", {
         position: "top-center",
         autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
       });
       return;
     }
@@ -129,37 +225,30 @@ function Cart() {
         year: "numeric",
       }),
       phoneNumber: userInfo.user.phoneNumber || phoneNumber,
-      userId: userInfo.user.uid, // This is now guaranteed to exist
-      status: OrderStatus.PENDING, // Initial status is "Pending"
+      userId: userInfo.user.uid,
+      status: OrderStatus.PENDING,
       totalAmount: grandTotal,
-      paymentMethod: paymentMethod, // Add payment method to order info
-      timeSlot: timeSlot, // Add time slot directly to the order
+      paymentMethod: paymentMethod,
+      timeSlot: timeSlot,
     };
 
     try {
       const response = await addOrderToDb(orderInfo);
       if (response.success) {
-        // Generate and store invoice using the order data WITH the order ID
+        // Generate and store invoice asynchronously
         const orderWithId = {
           ...orderInfo,
-          $id: response.data.$id, // Include the order ID from the response
+          $id: response.data.$id,
         };
 
-        try {
-          // Silently generate and store invoice without toast messages
-          await generateAndStoreInvoice(orderWithId);
-        } catch (invoiceError) {
-          console.error("Error generating invoice:", invoiceError);
-          // Don't stop the checkout process if invoice fails
-        }
+        // Don't await invoice generation - do it in background
+        generateAndStoreInvoice(orderWithId).catch((error) =>
+          console.error("Error generating invoice:", error)
+        );
 
         // Set processing to false
         setIsProcessing(false);
-
-        // Show the success modal
         setShowSuccessModal(true);
-
-        // Clear the cart
         dispatch(clearCart());
         localStorage.removeItem("cart");
       } else {
@@ -174,14 +263,10 @@ function Cart() {
   };
 
   // Close the success modal and redirect to home
-  const closeSuccessModal = () => {
+  const closeSuccessModal = useCallback(() => {
     setShowSuccessModal(false);
     window.location.href = "/";
-  };
-
-  useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cartItems));
-  }, [cartItems]);
+  }, []);
 
   return (
     <Layout>
@@ -193,7 +278,7 @@ function Cart() {
         }}
       >
         <h1 className="mb-10 text-center text-2xl font-bold">Cart Items</h1>
-        <div className="mx-auto max-w-5xl justify-center px-6 md:flex md:space-x-6 xl:px-0 ">
+        <div className="mx-auto max-w-5xl justify-center px-6 md:flex md:space-x-6 xl:px-0">
           <div className="rounded-lg md:w-2/3">
             {cartItems.length === 0 ? (
               <div className="text-center py-10">
@@ -203,72 +288,18 @@ function Cart() {
                 <p>Looks like you haven't added anything to your cart yet.</p>
               </div>
             ) : (
-              cartItems.map((item, index) => {
-                const { title, price, imageUrl, description, quantity } = item;
-                return (
-                  <div
-                    key={index}
-                    className="justify-between mb-6 rounded-lg border drop-shadow-xl bg-white p-6 sm:flex sm:justify-start"
-                    style={{
-                      backgroundColor: mode === "dark" ? "rgb(32 33 34)" : "",
-                      color: mode === "dark" ? "white" : "",
-                    }}
-                  >
-                    <img
-                      src={imageUrl}
-                      alt="product-image"
-                      className="w-full rounded-lg sm:w-40"
-                    />
-                    <div className="sm:ml-4 sm:flex sm:w-full sm:justify-between">
-                      <div className="mt-5 sm:mt-0">
-                        <h2
-                          className="text-lg font-bold text-gray-900"
-                          style={{ color: mode === "dark" ? "white" : "" }}
-                        >
-                          {title}
-                        </h2>
-                        <h2
-                          className="text-sm text-gray-900"
-                          style={{ color: mode === "dark" ? "white" : "" }}
-                        >
-                          {description}
-                        </h2>
-                        <p
-                          className="mt-1 text-xs font-semibold text-gray-700"
-                          style={{ color: mode === "dark" ? "white" : "" }}
-                        >
-                          ₹{price} × {quantity} = ₹{parseInt(price) * quantity}
-                        </p>
-                      </div>
-                      <div className="mt-4 flex flex-col justify-between sm:mt-0 sm:space-y-6 sm:block">
-                        <div className="flex items-center justify-end space-x-4 mb-2">
-                          <button
-                            onClick={() => decreaseQuantity(item)}
-                            className="bg-green-100 text-green-800 p-1 rounded hover:bg-green-200"
-                          >
-                            <FaMinus size={12} />
-                          </button>
-                          <span className="text-center font-semibold">
-                            {quantity}
-                          </span>
-                          <button
-                            onClick={() => increaseQuantity(item)}
-                            className="bg-green-100 text-green-800 p-1 rounded hover:bg-green-200"
-                          >
-                            <FaPlus size={12} />
-                          </button>
-                        </div>
-                        <button
-                          onClick={() => removeFromCart(item)}
-                          className="text-red-500 hover:text-red-700 flex items-center justify-end"
-                        >
-                          <FaTrash className="mr-1" /> Remove
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+              <div>
+                {cartItems.map((item, index) => (
+                  <CartItem
+                    key={`${item.$id || item.id}_${index}`}
+                    item={item}
+                    mode={mode}
+                    decreaseQuantity={decreaseQuantity}
+                    increaseQuantity={increaseQuantity}
+                    removeFromCart={removeFromCart}
+                  />
+                ))}
+              </div>
             )}
           </div>
 

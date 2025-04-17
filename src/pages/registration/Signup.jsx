@@ -6,6 +6,7 @@ import {
   signInWithGoogle,
   isAuthenticated,
   getCurrentUser,
+  sendEmailOTP,
 } from "../../appwrite/authUtils";
 import Loader from "../../components/loader/loader";
 
@@ -14,6 +15,8 @@ function Signup() {
   const context = useContext(myContext);
   const { loading, setLoading } = context;
   const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const [email, setEmail] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -46,7 +49,6 @@ function Signup() {
 
       // No need to do anything else here since the browser will redirect
       // After redirect, App.jsx's synchronizeUserState will handle the session
-      // We don't call getCurrentUser() here because the redirection will happen before it can complete
     } catch (error) {
       console.error("OAuth error:", error);
       toast.error("Signup Failed: " + (error.message || "Unknown error"), {
@@ -63,6 +65,37 @@ function Signup() {
     }
   };
 
+  // Handle Email OTP signup
+  const handleEmailOTP = async (e) => {
+    e.preventDefault();
+
+    if (!email.trim()) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await sendEmailOTP(email);
+
+      if (result.success) {
+        setOtpSent(true);
+        toast.success(
+          "Signup link sent to your email. Please check your inbox and spam folders."
+        );
+      } else {
+        toast.error(
+          result.error || "Failed to send signup link. Please try again."
+        );
+      }
+    } catch (error) {
+      console.error("Email OTP error:", error);
+      toast.error("Failed to send signup link. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // If still checking authentication status, show loader
   if (isAuthenticating) {
     return <Loader />;
@@ -71,7 +104,7 @@ function Signup() {
   return (
     <div className="flex justify-center items-center h-screen">
       {loading && <Loader />}
-      <div className="bg-gray-800 px-10 py-10 rounded-xl">
+      <div className="bg-gray-800 px-10 py-10 rounded-xl w-screen max-w-md">
         <div className="">
           <h1 className="text-center text-white text-xl mb-4 font-bold">
             Signup
@@ -109,6 +142,57 @@ function Signup() {
             Sign up with Google
           </button>
         </div>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-500"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-gray-800 px-2 text-gray-300">
+              Or signup with email
+            </span>
+          </div>
+        </div>
+
+        {!otpSent ? (
+          <form onSubmit={handleEmailOTP} className="mb-6">
+            <div className="mb-4">
+              <label
+                className="block text-white text-sm font-bold mb-2"
+                htmlFor="email"
+              >
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 text-gray-700 border rounded focus:outline-none focus:border-green-500"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+            >
+              Send Signup Link
+            </button>
+          </form>
+        ) : (
+          <div className="mb-6 p-4 bg-green-100 rounded text-green-800 text-center">
+            <p>Signup link sent to {email}</p>
+            <p className="text-sm mt-2">
+              Please check your email for the verification link
+            </p>
+            <button
+              onClick={() => setOtpSent(false)}
+              className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              Use different email
+            </button>
+          </div>
+        )}
 
         <div>
           <h2 className="text-white">
