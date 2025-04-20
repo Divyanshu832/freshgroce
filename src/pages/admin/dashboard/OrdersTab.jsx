@@ -18,6 +18,8 @@ import {
   FaTrash,
   FaFileInvoice,
   FaSpinner,
+  FaAngleLeft,
+  FaAngleRight,
 } from "react-icons/fa";
 
 const OrdersTab = () => {
@@ -27,12 +29,18 @@ const OrdersTab = () => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [generatingInvoiceId, setGeneratingInvoiceId] = useState(null);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ordersPerPage] = useState(10);
+  const [totalOrders, setTotalOrders] = useState(0);
+
   const fetchOrders = async () => {
     setLoading(true);
     try {
       const result = await getAllOrders();
       if (result.success) {
         setOrders(result.data);
+        setTotalOrders(result.data.length);
       } else {
         toast.error(result.error || "Failed to fetch orders");
       }
@@ -218,6 +226,28 @@ const OrdersTab = () => {
     return new Date(dateString).toLocaleString();
   };
 
+  // Pagination Logic
+  const indexOfLastOrder = currentPage * ordersPerPage;
+  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+  const currentOrders = orders.slice(indexOfFirstOrder, indexOfLastOrder);
+  const totalPages = Math.ceil(totalOrders / ordersPerPage);
+
+  // Change page
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Next and previous page navigation
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
@@ -259,7 +289,7 @@ const OrdersTab = () => {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
+              {currentOrders.map((order) => (
                 <tr
                   key={order.$id}
                   className="border-t border-gray-300 hover:bg-gray-50"
@@ -403,6 +433,75 @@ const OrdersTab = () => {
               ))}
             </tbody>
           </table>
+
+          {/* Pagination Component */}
+          <div className="flex justify-between items-center mt-4 px-4">
+            <div className="text-sm text-gray-600">
+              Showing {indexOfFirstOrder + 1} to{" "}
+              {Math.min(indexOfLastOrder, totalOrders)} of {totalOrders} orders
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded ${
+                  currentPage === 1
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                <FaAngleLeft />
+              </button>
+
+              {/* Page numbers */}
+              <div className="flex space-x-1">
+                {[...Array(totalPages).keys()].map((number) => {
+                  const pageNumber = number + 1;
+                  // Show only a window of 5 page numbers centered around the current page
+                  if (
+                    pageNumber === 1 ||
+                    pageNumber === totalPages ||
+                    (pageNumber >= currentPage - 1 &&
+                      pageNumber <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => paginate(pageNumber)}
+                        className={`px-3 py-1 rounded ${
+                          currentPage === pageNumber
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    );
+                  } else if (
+                    (pageNumber === currentPage - 2 && currentPage > 3) ||
+                    (pageNumber === currentPage + 2 &&
+                      currentPage < totalPages - 2)
+                  ) {
+                    return <span key={pageNumber}>...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1 rounded ${
+                  currentPage === totalPages
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                <FaAngleRight />
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

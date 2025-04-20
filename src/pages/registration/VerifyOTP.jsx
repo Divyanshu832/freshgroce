@@ -16,6 +16,9 @@ function VerifyOTP() {
 
   useEffect(() => {
     async function verifyOTP() {
+      // Clear any existing localStorage data to ensure clean state
+      localStorage.clear();
+
       // Extract userId and secret from URL parameters
       const searchParams = new URLSearchParams(location.search);
       const userId = searchParams.get("userId");

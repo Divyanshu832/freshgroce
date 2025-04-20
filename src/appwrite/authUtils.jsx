@@ -261,19 +261,18 @@ export const isAuthenticated = async () => {
     const currentUser = await account.get();
 
     if (currentUser) {
-      const localUser = localStorage.getItem("user");
-      if (!localUser) {
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            user: {
-              uid: currentUser.$id,
-              email: currentUser.email,
-              name: currentUser.name,
-            },
-          })
-        );
-      }
+      // If we have a valid Appwrite session, update localStorage
+      // instead of checking if localStorage exists
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          user: {
+            uid: currentUser.$id,
+            email: currentUser.email,
+            name: currentUser.name,
+          },
+        })
+      );
 
       return {
         success: true,
@@ -281,6 +280,9 @@ export const isAuthenticated = async () => {
         user: currentUser,
       };
     }
+
+    // No valid Appwrite session, clear localStorage to be safe
+    localStorage.removeItem("user");
 
     return {
       success: false,
@@ -290,6 +292,9 @@ export const isAuthenticated = async () => {
     // Handle permission-related errors (missing scope, unauthorized)
     console.error("Authentication check error:", error);
 
+    // Clear stale data from localStorage regardless of error type
+    localStorage.removeItem("user");
+
     // Check if it's a permission error that contains the specific missing scope message
     if (
       error.message &&
@@ -297,9 +302,6 @@ export const isAuthenticated = async () => {
         error.message.includes("Unauthorized") ||
         error.code === 401)
     ) {
-      // Clear stale data from localStorage
-      localStorage.removeItem("user");
-
       return {
         success: false,
         isAuthenticated: false,
@@ -308,8 +310,6 @@ export const isAuthenticated = async () => {
       };
     }
 
-    // For other errors, clean up and return appropriate response
-    localStorage.removeItem("user");
     return {
       success: false,
       isAuthenticated: false,
@@ -540,6 +540,213 @@ export const isUserAdmin = async () => {
     return {
       success: false,
       isAdmin: false,
+      error: error.message,
+    };
+  }
+};
+
+// Email/password signup
+export const signUpWithEmailPassword = async (email, password, name) => {
+  try {
+    // Clear localStorage to prevent conflicts with existing user data
+    localStorage.clear();
+
+    // Create user account with email and password
+    const user = await account.create(
+      ID.unique(),
+      email,
+      password,
+      name || email.split("@")[0]
+    );
+
+    if (user) {
+      // Create session (login the user)
+      await account.createEmailPasswordSession(email, password);
+
+      // Create user in database
+      const userData = {
+        name: name || user.name || email.split("@")[0],
+        email: user.email,
+      };
+
+      const userInDb = await createUser(userData);
+
+      // Check admin status
+      const adminStatus = await isUserAdmin();
+
+      // Store user data in localStorage
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          user: {
+            uid: user.$id,
+            email: user.email,
+            name: user.name,
+            isAdmin: adminStatus.success && adminStatus.isAdmin,
+          },
+        })
+      );
+
+      // Notify components about auth state change
+      notifyAuthStateChanged({
+        uid: user.$id,
+        email: user.email,
+        name: user.name,
+        isAdmin: adminStatus.success && adminStatus.isAdmin,
+      });
+
+      return {
+        success: true,
+        data: user,
+        userInDb: userInDb.data,
+      };
+    }
+
+    return {
+      success: false,
+      message: "Failed to create user",
+    };
+  } catch (error) {
+    console.error("Error signing up with email/password:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+// Email/password login
+export const loginWithEmailPassword = async (email, password) => {
+  try {
+    // Clear potential stale localStorage data before login
+    localStorage.clear();
+
+    // Login with email and password
+    const session = await account.createEmailPasswordSession(email, password);
+
+    if (session) {
+      // Get user details
+      const user = await account.get();
+
+      // Create or fetch user from database
+      const userData = {
+        name: user.name || email.split("@")[0],
+        email: user.email,
+      };
+
+      const userInDb = await createUser(userData);
+
+      // Check admin status
+      const adminStatus = await isUserAdmin();
+
+      // Store user data in localStorage
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          user: {
+            uid: user.$id,
+            email: user.email,
+            name: user.name,
+            isAdmin: adminStatus.success && adminStatus.isAdmin,
+          },
+        })
+      );
+
+      // Notify components about auth state change
+      notifyAuthStateChanged({
+        uid: user.$id,
+        email: user.email,
+        name: user.name,
+        isAdmin: adminStatus.success && adminStatus.isAdmin,
+      });
+
+      return {
+        success: true,
+        data: user,
+        userInDb: userInDb.data,
+        session: session,
+      };
+    }
+
+    return {
+      success: false,
+      message: "Failed to login",
+    };
+  } catch (error) {
+    console.error("Error logging in with email/password:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+// Create new user with email and password
+export const createUserWithEmailAndPassword = async (email, password, name) => {
+  try {
+    // Clear localStorage to prevent conflicts with existing user data
+    localStorage.clear();
+
+    // Generate a unique ID for the user
+    const userId = ID.unique();
+
+    // Create the user account
+    const newUser = await account.create(userId, email, password, name);
+
+    // Create a session for the user
+    await account.createEmailPasswordSession(email, password);
+
+    // Get the current user after creating the session
+    const currentUser = await account.get();
+
+    if (currentUser) {
+      // Create user data for database
+      const userData = {
+        name: name || currentUser.name || email.split("@")[0],
+        email: email,
+      };
+
+      // Store user data in database and localStorage
+      try {
+        // Check if a createUser function exists or create user directly in database
+        const userInDb = await createUser(userData);
+
+        // Store user data in localStorage
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            user: {
+              uid: currentUser.$id,
+              email: currentUser.email,
+              name: currentUser.name || userData.name,
+            },
+          })
+        );
+
+        return {
+          success: true,
+          data: currentUser,
+          userInDb: userInDb?.data || null,
+        };
+      } catch (dbError) {
+        console.error("Error storing user in database:", dbError);
+        // Continue even if database storage fails
+        return {
+          success: true,
+          data: currentUser,
+          warning: "User created but not stored in database",
+        };
+      }
+    }
+
+    return {
+      success: false,
+      error: "Failed to get user after account creation",
+    };
+  } catch (error) {
+    console.error("Error creating user with email and password:", error);
+    return {
+      success: false,
       error: error.message,
     };
   }

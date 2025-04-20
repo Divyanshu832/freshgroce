@@ -9,6 +9,7 @@ import {
   synchronizeUserState,
   sendEmailOTP,
   handleOAuthCallback,
+  loginWithEmailPassword,
 } from "../../appwrite/authUtils";
 import Loader from "../../components/loader/loader";
 
@@ -19,7 +20,9 @@ function Login() {
   const { loading, setLoading } = context;
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [showMagicLogin, setShowMagicLogin] = useState(false);
 
   // Check if user is already logged in or just completed OAuth
   useEffect(() => {
@@ -99,6 +102,43 @@ function Login() {
     }
   };
 
+  // Handle Email/Password Login
+  const handleEmailPasswordLogin = async (e) => {
+    e.preventDefault();
+
+    if (!email.trim()) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    if (!password.trim()) {
+      toast.error("Please enter your password");
+      return;
+    }
+
+    // Clear any existing localStorage data to ensure clean state
+    localStorage.clear();
+
+    setLoading(true);
+    try {
+      const result = await loginWithEmailPassword(email, password);
+
+      if (result.success) {
+        toast.success("Login successful");
+        navigate("/");
+      } else {
+        toast.error(
+          result.error || "Failed to login. Please check your credentials."
+        );
+      }
+    } catch (error) {
+      console.error("Email/password login error:", error);
+      toast.error("Login failed. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handle Email OTP authentication
   const handleEmailOTP = async (e) => {
     e.preventDefault();
@@ -107,6 +147,9 @@ function Login() {
       toast.error("Please enter your email address");
       return;
     }
+
+    // Clear any existing localStorage data to ensure clean state
+    localStorage.clear();
 
     setLoading(true);
     try {
@@ -128,6 +171,12 @@ function Login() {
     }
   };
 
+  // Toggle between password login and magic link login
+  const toggleLoginMethod = () => {
+    setShowMagicLogin(!showMagicLogin);
+    setOtpSent(false); // Reset OTP sent state when toggling
+  };
+
   // If still checking authentication status, show loader
   if (isAuthenticating) {
     return <Loader />;
@@ -142,6 +191,93 @@ function Login() {
             Login
           </h1>
         </div>
+
+        {!showMagicLogin ? (
+          // Email/Password Login Form
+          <form onSubmit={handleEmailPasswordLogin} className="mb-6">
+            <div className="mb-4">
+              <label
+                className="block text-white text-sm font-bold mb-2"
+                htmlFor="email"
+              >
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 text-gray-700 border rounded focus:outline-none focus:border-green-500"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label
+                className="block text-white text-sm font-bold mb-2"
+                htmlFor="password"
+              >
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2 text-gray-700 border rounded focus:outline-none focus:border-green-500"
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mb-4"
+            >
+              Login
+            </button>
+          </form>
+        ) : (
+          // Magic URL Login Form
+          <>
+            {!otpSent ? (
+              <form onSubmit={handleEmailOTP} className="mb-6">
+                <div className="mb-4">
+                  <label
+                    className="block text-white text-sm font-bold mb-2"
+                    htmlFor="email"
+                  >
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3 py-2 text-gray-700 border rounded focus:outline-none focus:border-green-500"
+                    placeholder="Enter your email"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mb-4"
+                >
+                  Send Login Link
+                </button>
+              </form>
+            ) : (
+              <div className="mb-6 p-4 bg-green-100 rounded text-green-800 text-center">
+                <p>Login link sent to {email}</p>
+                <p className="text-sm mt-2">
+                  Please check your email for a login link
+                </p>
+                <button
+                  onClick={() => setOtpSent(false)}
+                  className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  Use different email
+                </button>
+              </div>
+            )}
+          </>
+        )}
 
         <div className="flex justify-center mb-6">
           <button
@@ -175,56 +311,15 @@ function Login() {
           </button>
         </div>
 
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-500"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-gray-800 px-2 text-gray-300">
-              Or login with email
-            </span>
-          </div>
+        <div className="text-center mt-4 mb-6">
+          <button
+            type="button"
+            onClick={toggleLoginMethod}
+            className="text-blue-400 hover:text-blue-500 font-medium"
+          >
+            {!showMagicLogin ? "Login with mail OTP" : "Login with password"}
+          </button>
         </div>
-
-        {!otpSent ? (
-          <form onSubmit={handleEmailOTP} className="mb-6">
-            <div className="mb-4">
-              <label
-                className="block text-white text-sm font-bold mb-2"
-                htmlFor="email"
-              >
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 text-gray-700 border rounded focus:outline-none focus:border-green-500"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            >
-              Send Login OTP
-            </button>
-          </form>
-        ) : (
-          <div className="mb-6 p-4 bg-green-100 rounded text-green-800 text-center">
-            <p>OTP sent to {email}</p>
-            <p className="text-sm mt-2">
-              Please check your email for a login link
-            </p>
-            <button
-              onClick={() => setOtpSent(false)}
-              className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
-            >
-              Use different email
-            </button>
-          </div>
-        )}
 
         <div>
           <h2 className="text-white">

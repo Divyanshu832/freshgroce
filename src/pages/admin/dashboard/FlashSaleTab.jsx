@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useContext } from "react";
-import { FaBolt, FaTrash, FaEdit, FaTag } from "react-icons/fa";
+import {
+  FaBolt,
+  FaTrash,
+  FaEdit,
+  FaTag,
+  FaAngleLeft,
+  FaAngleRight,
+} from "react-icons/fa";
 import { toast } from "react-toastify";
 import myContext from "../../../context/data/myContext";
 import {
@@ -26,6 +33,11 @@ function FlashSaleTab() {
   const [editingId, setEditingId] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState("");
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
+  const [totalItems, setTotalItems] = useState(0);
+
   useEffect(() => {
     fetchFlashSales();
     fetchProducts();
@@ -49,6 +61,7 @@ function FlashSaleTab() {
       const response = await getAllFlashSales();
       if (response.success) {
         setFlashSales(response.data);
+        setTotalItems(response.data.length);
       } else {
         toast.error("Failed to load flash sales");
       }
@@ -201,6 +214,28 @@ function FlashSaleTab() {
   const formatDate = (dateString) => {
     const options = { year: "numeric", month: "short", day: "numeric" };
     return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
+  // Pagination Logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = flashSales.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  // Change page
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Next and previous page navigation
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
   };
 
   return (
@@ -401,7 +436,7 @@ function FlashSaleTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-                {flashSales.map((flashSale) => (
+                {currentItems.map((flashSale) => (
                   <tr
                     key={flashSale.$id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -452,6 +487,84 @@ function FlashSaleTab() {
                 ))}
               </tbody>
             </table>
+
+            {/* Pagination Component */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-4 px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Showing {indexOfFirstItem + 1} to{" "}
+                  {Math.min(indexOfLastItem, totalItems)} of {totalItems} items
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={goToPreviousPage}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded ${
+                      currentPage === 1
+                        ? "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    <FaAngleLeft />
+                  </button>
+
+                  {/* Page numbers */}
+                  <div className="flex space-x-1">
+                    {[...Array(totalPages).keys()].map((number) => {
+                      const pageNumber = number + 1;
+                      // Show only a window of 3 page numbers centered around the current page
+                      if (
+                        pageNumber === 1 ||
+                        pageNumber === totalPages ||
+                        (pageNumber >= currentPage - 1 &&
+                          pageNumber <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={pageNumber}
+                            onClick={() => paginate(pageNumber)}
+                            className={`px-3 py-1 rounded ${
+                              currentPage === pageNumber
+                                ? "bg-yellow-500 text-white"
+                                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                            }`}
+                          >
+                            {pageNumber}
+                          </button>
+                        );
+                      } else if (
+                        (pageNumber === currentPage - 2 && currentPage > 3) ||
+                        (pageNumber === currentPage + 2 &&
+                          currentPage < totalPages - 2)
+                      ) {
+                        return (
+                          <span
+                            key={pageNumber}
+                            className="text-gray-500 dark:text-gray-400"
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+
+                  <button
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1 rounded ${
+                      currentPage === totalPages
+                        ? "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    <FaAngleRight />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

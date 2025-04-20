@@ -8,6 +8,8 @@ import {
   FaStar,
   FaRegStar,
   FaHotjar,
+  FaAngleLeft,
+  FaAngleRight,
 } from "react-icons/fa";
 import { AiFillShopping, AiFillPlusCircle, AiFillDelete } from "react-icons/ai";
 import { Link, Navigate } from "react-router-dom";
@@ -29,6 +31,14 @@ function DashboardTab() {
   const [loading, setLoading] = useState(false);
   // State to track featured product count
   const [featuredCount, setFeaturedCount] = useState(0);
+
+  // Pagination states for Products tab
+  const [productCurrentPage, setProductCurrentPage] = useState(1);
+  const [productsPerPage] = useState(5);
+  const [userCurrentPage, setUserCurrentPage] = useState(1);
+  const [usersPerPage] = useState(5);
+  const [reviewCurrentPage, setReviewCurrentPage] = useState(1);
+  const [reviewsPerPage] = useState(5);
 
   // Get featured products count
   useEffect(() => {
@@ -156,6 +166,107 @@ function DashboardTab() {
     window.location.href = "/addproduct";
   };
 
+  // Pagination logic for products
+  const indexOfLastProduct = productCurrentPage * productsPerPage;
+  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+  const currentProducts = product.slice(
+    indexOfFirstProduct,
+    indexOfLastProduct
+  );
+  const totalProductPages = Math.ceil(product.length / productsPerPage);
+
+  // Pagination logic for users
+  const indexOfLastUser = userCurrentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers =
+    user && user.slice ? user.slice(indexOfFirstUser, indexOfLastUser) : [];
+  const totalUserPages =
+    user && user.length ? Math.ceil(user.length / usersPerPage) : 0;
+
+  // Pagination logic for reviews
+  const indexOfLastReview = reviewCurrentPage * reviewsPerPage;
+  const indexOfFirstReview = indexOfLastReview - reviewsPerPage;
+  const currentReviews = reviews.slice(indexOfFirstReview, indexOfLastReview);
+  const totalReviewPages = Math.ceil(reviews.length / reviewsPerPage);
+
+  // Page change handlers
+  const handleProductPageChange = (pageNumber) => {
+    setProductCurrentPage(pageNumber);
+  };
+
+  const handleUserPageChange = (pageNumber) => {
+    setUserCurrentPage(pageNumber);
+  };
+
+  const handleReviewPageChange = (pageNumber) => {
+    setReviewCurrentPage(pageNumber);
+  };
+
+  // Pagination component
+  const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+    return (
+      <div className="flex justify-center mt-5">
+        <nav className="flex items-center space-x-2">
+          <button
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded-md ${
+              currentPage === 1
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-gray-800 hover:bg-gray-200"
+            }`}
+          >
+            <FaAngleLeft />
+          </button>
+
+          {[...Array(totalPages)].map((_, index) => {
+            const pageNumber = index + 1;
+            // Show current page, first, last, and one page before and after current
+            if (
+              pageNumber === 1 ||
+              pageNumber === totalPages ||
+              (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+            ) {
+              return (
+                <button
+                  key={pageNumber}
+                  onClick={() => onPageChange(pageNumber)}
+                  className={`px-3 py-1 rounded-md ${
+                    currentPage === pageNumber
+                      ? "bg-blue-500 text-white"
+                      : "text-gray-800 hover:bg-gray-200"
+                  }`}
+                >
+                  {pageNumber}
+                </button>
+              );
+            }
+            // Show ellipsis for gaps
+            if (
+              (pageNumber === 2 && currentPage > 3) ||
+              (pageNumber === totalPages - 1 && currentPage < totalPages - 2)
+            ) {
+              return <span key={pageNumber}>...</span>;
+            }
+            return null;
+          })}
+
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded-md ${
+              currentPage === totalPages
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-gray-800 hover:bg-gray-200"
+            }`}
+          >
+            <FaAngleRight />
+          </button>
+        </nav>
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="container mx-auto">
@@ -276,10 +387,10 @@ function DashboardTab() {
                         </th>
                       </tr>
                     </thead>
-                    {product.map((item, index) => {
+                    {currentProducts.map((item, index) => {
                       const { title, price, imageUrl, category, date } = item;
                       return (
-                        <tbody className="">
+                        <tbody className="" key={item.$id || index}>
                           <tr
                             className="bg-gray-50 border-b  dark:border-gray-700"
                             style={{
@@ -292,7 +403,7 @@ function DashboardTab() {
                               className="px-6 py-4 text-black "
                               style={{ color: mode === "dark" ? "white" : "" }}
                             >
-                              {index + 1}.
+                              {indexOfFirstProduct + index + 1}.
                             </td>
                             <th
                               scope="row"
@@ -404,6 +515,13 @@ function DashboardTab() {
                     })}
                   </table>
                 </div>
+                {totalProductPages > 1 && (
+                  <Pagination
+                    currentPage={productCurrentPage}
+                    totalPages={totalProductPages}
+                    onPageChange={handleProductPageChange}
+                  />
+                )}
               </div>
             </TabPanel>
             <TabPanel>
@@ -443,8 +561,8 @@ function DashboardTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {user && user.length > 0 ? (
-                      user.map((item, index) => {
+                    {currentUsers && currentUsers.length > 0 ? (
+                      currentUsers.map((item, index) => {
                         const { name, uid, email, date } = item;
                         return (
                           <tr
@@ -460,7 +578,7 @@ function DashboardTab() {
                               className="px-6 py-4 text-black "
                               style={{ color: mode === "dark" ? "white" : "" }}
                             >
-                              {index + 1}.
+                              {indexOfFirstUser + index + 1}.
                             </td>
                             <td
                               className="px-6 py-4 text-black "
@@ -496,6 +614,13 @@ function DashboardTab() {
                     )}
                   </tbody>
                 </table>
+                {totalUserPages > 1 && (
+                  <Pagination
+                    currentPage={userCurrentPage}
+                    totalPages={totalUserPages}
+                    onPageChange={handleUserPageChange}
+                  />
+                )}
               </div>
             </TabPanel>
             {/* Reviews Tab */}
@@ -552,7 +677,7 @@ function DashboardTab() {
                       </tr>
                     </thead>
                     <tbody>
-                      {reviews.map((review, index) => {
+                      {currentReviews.map((review, index) => {
                         // Find the corresponding product to get its image and title
                         const productItem =
                           product.find(
@@ -572,7 +697,7 @@ function DashboardTab() {
                               className="px-6 py-4 text-black"
                               style={{ color: mode === "dark" ? "white" : "" }}
                             >
-                              {index + 1}.
+                              {indexOfFirstReview + index + 1}.
                             </td>
                             <td className="px-6 py-4 font-medium text-black whitespace-nowrap">
                               {productItem.imageUrl ? (
@@ -657,6 +782,13 @@ function DashboardTab() {
                       })}
                     </tbody>
                   </table>
+                )}
+                {totalReviewPages > 1 && (
+                  <Pagination
+                    currentPage={reviewCurrentPage}
+                    totalPages={totalReviewPages}
+                    onPageChange={handleReviewPageChange}
+                  />
                 )}
               </div>
             </TabPanel>
